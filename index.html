@@ -52,6 +52,7 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .assetcard{padding:0;overflow:hidden;text-align:left}
 .assetcard img{width:100%;height:140px;object-fit:cover;display:block}
 .assetcard span{display:block;padding:10px}
+.filmswatch{height:64px;background:linear-gradient(120deg,#ffb347,#ff6b6b,#7c5cff,#4be3c1)}
 .previewasset{width:100%;height:180px;object-fit:contain;border-radius:9px}
 .projectrow{display:flex;gap:8px}
 .projectrow button:first-child{flex:1;text-align:left}
@@ -127,6 +128,10 @@ nav .icon{width:25px;height:25px}
 <button id="projects" aria-label="Проекты">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
 <span>Проекты</span>
+</button>
+<button id="film-btn" aria-label="Плёнка проекта" title="Плёнка проекта">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7.5 5v14M16.5 5v14"/><circle cx="5.6" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="5.6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5.6" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
+<span>Плёнка</span>
 </button>
 <b>Hollywood<span class="red">Coder</span></b>
 <button id="savecopy" aria-label="Скачать копию проекта">
@@ -1127,6 +1132,7 @@ function render() {
   $('#title').value = project.name;
   $('#ratio').value = project.ratio;
   $('#frame').style.aspectRatio = project.ratio.replace(':', '/');
+  applyFilm();
   renderTimeline();
 
   const c = currentClips().find(x => x.id === selected);
@@ -1581,6 +1587,71 @@ $('#title').onchange = e => {
 };
 
 $('#ratio').onchange = e => change(() => project.ratio = e.target.value);
+
+/* ---------- Плёнка проекта ---------- */
+const FILMS = [
+  {id: 'none', name: 'Без плёнки', hint: 'чистая цифра', css: 'none'},
+  {id: 'portra', name: 'Kodak Portra 400', hint: 'тёплые кожи, мягкие тени', css: 'saturate(.95) contrast(1.02) sepia(.12) hue-rotate(-6deg)'},
+  {id: 'gold', name: 'Kodak Gold 200', hint: 'жёлтое солнце', css: 'sepia(.18) saturate(1.08) contrast(1.04) brightness(1.02)'},
+  {id: 'ultramax', name: 'Kodak UltraMax 400', hint: 'плотные цвета', css: 'saturate(1.18) contrast(1.06)'},
+  {id: 'ektar', name: 'Kodak Ektar 100', hint: 'холодная насыщенность', css: 'saturate(1.22) contrast(1.08) hue-rotate(3deg)'},
+  {id: 'velvia', name: 'Fuji Velvia 50', hint: 'ядрёная природа', css: 'saturate(1.35) contrast(1.14)'},
+  {id: 'provia', name: 'Fuji Provia 100F', hint: 'ровный баланс', css: 'saturate(1.06) contrast(1.03)'},
+  {id: 'superia', name: 'Fuji Superia 400', hint: 'зелёные тени', css: 'saturate(1.1) contrast(1.05) hue-rotate(-3deg)'},
+  {id: 'cinestill', name: 'CineStill 800T', hint: 'ночь и неон', css: 'saturate(1.12) contrast(1.06) hue-rotate(-8deg) brightness(.97)'},
+  {id: 'hp5', name: 'Ilford HP5 Plus', hint: 'мягкое ч/б', css: 'grayscale(1) contrast(1.16)'},
+  {id: 'trix', name: 'Kodak Tri-X 400', hint: 'жёсткое ч/б', css: 'grayscale(1) contrast(1.28) brightness(.98)'},
+  {id: 'polaroid', name: 'Polaroid 600', hint: 'выцветшее лето', css: 'saturate(.8) contrast(.92) sepia(.22) brightness(1.04)'}
+];
+
+function filmById(id) {
+  return FILMS.find(film => film.id === id) || FILMS[0];
+}
+
+function applyFilm() {
+  const film = filmById(project && project.film);
+  const frame = $('#frame');
+  if (frame) frame.style.filter = film.css === 'none' ? '' : film.css;
+  const btn = $('#film-btn');
+  if (btn) btn.setAttribute('title', 'Плёнка: ' + film.name);
+}
+
+$('#film-btn').onclick = () => {
+  const p = modal('Плёнка проекта');
+  const note = document.createElement('p');
+  note.textContent = 'Выбери плёнку — весь проект сразу поменяет вид. Точный цветокор по кадру сделает ИИ-редактор.';
+  p.append(note);
+
+  const grid = document.createElement('div');
+  grid.className = 'assetgrid';
+  p.append(grid);
+
+  for (const film of FILMS) {
+    const active = (project.film || 'none') === film.id;
+    const b = document.createElement('button');
+    b.className = 'assetcard' + (active ? ' primary' : '');
+
+    const swatch = document.createElement('div');
+    swatch.className = 'filmswatch';
+    swatch.style.filter = film.css === 'none' ? '' : film.css;
+
+    const label = document.createElement('span');
+    label.innerHTML = '<b>' + film.name + '</b><br><small>' + film.hint + '</small>';
+
+    b.append(swatch, label);
+    b.onclick = () => {
+      change(() => { project.film = film.id; });
+      $('#modal').close();
+      toast('Плёнка: ' + film.name);
+    };
+    grid.append(b);
+  }
+
+  button(p, 'Подключить ИИ-редактор', () => {
+    $('#modal').close();
+    toast('ИИ-редактор пока не подключён — сейчас плёнка применяется упрощённо');
+  }, true);
+};
 
 $('#remove').onclick = () => {
   stop();
