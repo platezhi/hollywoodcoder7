@@ -56,7 +56,8 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .projectrow{display:flex;gap:8px}
 .projectrow button:first-child{flex:1;text-align:left}
 #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;padding:16px 22px;border:1px solid #505461;border-radius:14px;background:#30333b;color:white;z-index:20;box-shadow:0 5px 30px #0008}
-#timeline-scroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding:0 14px 12px 0;touch-action:pan-x}
+#timeline-scroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding:0 14px 0 0;touch-action:pan-x;scrollbar-width:none;-ms-overflow-style:none}
+#timeline-scroll::-webkit-scrollbar{display:none;width:0;height:0}
 #timeline-content{position:relative;min-height:117.5px}
 #ruler{height:42px;position:relative;cursor:crosshair;touch-action:pan-x}
 .tick{position:absolute;top:0;height:36px;border-left:1px solid #555b67;padding-left:5px;font-size:11px;color:#c8cbd2;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
@@ -77,8 +78,8 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 header button,.transport button,.dialoghead button,#editbar button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 #add{display:flex;align-items:center;justify-content:center;padding:0;line-height:0}
 #add .icon{width:22px;height:22px;stroke-width:2.4;display:block;margin:0}
-#play{width:56px;height:44px;min-width:56px;padding:0}
-#play .icon{width:24px;height:24px}
+#play{display:flex;align-items:center;justify-content:center;width:56px;height:44px;min-width:56px;padding:0;line-height:0}
+#play .icon{width:24px;height:24px;display:block;margin:0}
 nav .icon{width:25px;height:25px}
 #editbar .icon{width:19px;height:19px}
 .dialoghead button{width:44px;height:44px;padding:0}
@@ -140,7 +141,7 @@ nav .icon{width:25px;height:25px}
 <div class="transport">
 <output id="clock">00:00 / 00:00</output>
 <button id="play" aria-label="Воспроизвести">
-<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/></svg>
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6.5 6 17.5 12 6.5 18Z" fill="currentColor" stroke="none"/></svg>
 </button>
 <span id="saved">Сохранено на устройстве</span>
 </div>
@@ -219,7 +220,7 @@ nav .icon{width:25px;height:25px}
 'use strict';
 
 const iconMarkup = {
-  play: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/></svg>',
+  play: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6.5 6 17.5 12 6.5 18Z" fill="currentColor" stroke="none"/></svg>',
   pause: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke-width="3.5"/></svg>',
   left: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg>',
   right: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg>'
