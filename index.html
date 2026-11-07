@@ -81,9 +81,6 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #frame .lyr[hidden],#frame .lyr img[hidden],#frame .lyr video[hidden]{display:none}
 .track-del{position:absolute;right:6px;top:-11px;width:22px;height:22px;border-radius:50%;border:1px solid #3a3f4a;background:#22262e;color:#cfd3dd;font-size:15px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;z-index:5;cursor:pointer}
 .track-del:hover{background:#3a2024;border-color:#ff4b57;color:#fff}
-.track-move{position:absolute;left:6px;top:-11px;display:flex;gap:4px;z-index:5}
-.track-mv{width:22px;height:22px;border-radius:50%;border:1px solid #3a3f4a;background:#22262e;color:#cfd3dd;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.track-mv:hover{background:#2b303a;border-color:#ff4b57;color:#fff}
 .headcontrols{display:flex;align-items:center;gap:8px}
 #add-over{height:32px;padding:0 12px;border-radius:999px;background:#262a33;border:1px solid #34363c;color:#cfd3dd;font-size:12px;line-height:1;display:inline-flex;align-items:center;white-space:nowrap}
 .filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
@@ -456,34 +453,6 @@ function renderTimeline() {
     host.append(track);
     renderTrack(track, clips, index);
 
-    const moveRow = document.createElement('div');
-    moveRow.className = 'track-move';
-    [
-      ['up', '↑', 'Поднять слой ' + (index + 1)],
-      ['down', '↓', 'Опустить слой ' + (index + 1)]
-    ].forEach(([dir, glyph, label]) => {
-      const btn = document.createElement('button');
-      btn.className = 'track-mv';
-      btn.type = 'button';
-      btn.textContent = glyph;
-      btn.setAttribute('aria-label', label);
-      btn.onclick = event => {
-        event.stopPropagation();
-        const to = dir === 'up' ? index - 1 : index + 1;
-        if (to < 0 || to >= layersOf().length) return;
-        stop();
-        change(() => {
-          const list = layersOf();
-          const [layer] = list.splice(index, 1);
-          list.splice(to, 0, layer);
-          if (selectedLayer === index) selectedLayer = to;
-          else if (selectedLayer === to) selectedLayer = index;
-        });
-      };
-      moveRow.append(btn);
-    });
-    track.append(moveRow);
-
     if (index > 0) {
       const del = document.createElement('button');
       del.className = 'track-del';
@@ -509,6 +478,49 @@ function renderTimeline() {
   updatePlayhead();
 }
 
+function startLayerReorder(from, startY) {
+  const rows = () => [...document.querySelectorAll('#tracks .track')];
+  let target = from;
+  let moved = false;
+
+  const move = ev => {
+    if (!moved && Math.abs(ev.clientY - startY) < 10) return;
+    moved = true;
+    rows().forEach((row, index) => {
+      const box = row.getBoundingClientRect();
+      if (ev.clientY >= box.top && ev.clientY <= box.bottom) target = index;
+    });
+    rows().forEach((row, index) => {
+      row.classList.toggle('drop-target', index === target && index !== from);
+      row.classList.toggle('carrying', index === from);
+    });
+  };
+
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
+    rows().forEach(row => {
+      row.classList.remove('drop-target');
+      row.classList.remove('carrying');
+    });
+    if (!moved || target === from) return;
+    suppressTimelineClickUntil = Date.now() + 300;
+    change(() => {
+      const list = layersOf();
+      const [movedLayer] = list.splice(from, 1);
+      list.splice(target, 0, movedLayer);
+      if (selectedLayer === from) selectedLayer = target;
+      else if (selectedLayer > from && selectedLayer <= target) selectedLayer--;
+      else if (selectedLayer < from && selectedLayer >= target) selectedLayer++;
+    });
+  };
+
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+}
+
 function renderTrack(track, clips, layer) {
   let start = 0;
 
@@ -524,51 +536,7 @@ function renderTrack(track, clips, layer) {
 
   track.onpointerdown = event => {
     if (event.target !== track || !event.isPrimary || !project) return;
-    const startY = event.clientY;
-    const from = layer;
-    let moved = false;
-    let target = layer;
-
-    const rows = () => [...$('#tracks').children];
-
-    const move = ev => {
-      if (!moved && Math.abs(ev.clientY - startY) < 10) return;
-      moved = true;
-      track.classList.add('carrying');
-      rows().forEach((row, index) => {
-        const box = row.getBoundingClientRect();
-        if (ev.clientY >= box.top && ev.clientY <= box.bottom) target = index;
-      });
-      rows().forEach((row, index) => {
-        row.classList.toggle('drop-target', index === target && index !== from);
-      });
-    };
-
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-      track.classList.remove('carrying');
-      rows().forEach(row => row.classList.remove('drop-target'));
-
-      if (moved) {
-        suppressTimelineClickUntil = Date.now() + 300;
-        if (target !== from) {
-          change(() => {
-            const list = layersOf();
-            const [movedLayer] = list.splice(from, 1);
-            list.splice(target, 0, movedLayer);
-            if (selectedLayer === from) selectedLayer = target;
-            else if (selectedLayer > from && selectedLayer <= target) selectedLayer--;
-            else if (selectedLayer < from && selectedLayer >= target) selectedLayer++;
-          });
-        }
-      }
-    };
-
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
+    startLayerReorder(layer, event.clientY);
   };
 
   for (const clip of clips) {
@@ -626,12 +594,31 @@ function renderTrack(track, clips, layer) {
       if (event.target.closest('.trim-handle')) return;
       if (!event.isPrimary) return;
       const startX = event.clientX;
+      const startY = event.clientY;
       const baseGap = clipGap(clip);
       const before = structuredClone(project);
       let moved = false;
+      let axis = null;
+      let finished = false;
 
       const move = ev => {
-        const next = Math.max(0, baseGap + (ev.clientX - startX) / pixelsPerSecond);
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+
+        if (!axis) {
+          if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+          axis = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+          if (axis === 'v') {
+            finished = true;
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            window.removeEventListener('pointercancel', up);
+            startLayerReorder(layer, startY);
+            return;
+          }
+        }
+
+        const next = Math.max(0, baseGap + dx / pixelsPerSecond);
         if (Math.abs(next - clipGap(clip)) < .001) return;
         moved = true;
         clip.gap = next;
@@ -642,6 +629,7 @@ function renderTrack(track, clips, layer) {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
         window.removeEventListener('pointercancel', up);
+        if (finished) return;
         if (moved) {
           suppressTimelineClickUntil = Date.now() + 250;
           history.push(before);
@@ -1896,6 +1884,8 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
 
 
 
