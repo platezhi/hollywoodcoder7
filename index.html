@@ -65,7 +65,9 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #track,.track{display:block;position:relative;overflow:visible;padding:0;height:52.5px;min-height:52.5px;background:#111318;border-radius:6px}
 .track{margin-top:10px}
 .track.active{box-shadow:inset 0 0 0 1px rgba(255,75,87,.6)}
-.track.carrying{opacity:.65;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.track.carrying{opacity:.45}
+.drag-ghost{position:fixed;transform:translate(-50%,-50%);background:#2b303a;border:1px solid #ff4b57;color:#fff;border-radius:10px;padding:6px 12px;font-size:12px;line-height:1.2;z-index:80;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.5);white-space:nowrap}
+.insert-line{position:absolute;height:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
 .track.drop-target{box-shadow:inset 0 0 0 2px #ff4b57}
 .track:empty::after{content:'пустой слой';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#5f6674;pointer-events:none}
 .overlaypv{z-index:3}
@@ -480,45 +482,81 @@ function renderTimeline() {
 
 function startLayerReorder(from, startY) {
   const rows = () => [...document.querySelectorAll('#tracks .track')];
-  let target = from;
-  let moved = false;
 
-  const move = ev => {
-    if (!moved && Math.abs(ev.clientY - startY) < 10) return;
-    moved = true;
-    rows().forEach((row, index) => {
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  ghost.textContent = 'Слой ' + (from + 1);
+  ghost.hidden = true;
+  document.body.append(ghost);
+
+  const line = document.createElement('div');
+  line.className = 'insert-line';
+  line.hidden = true;
+  document.body.append(line);
+
+  let moved = false;
+  let insertAt = from;
+
+  const place = ev => {
+    const list = rows();
+    insertAt = list.length;
+    list.forEach((row, index) => {
       const box = row.getBoundingClientRect();
-      if (ev.clientY >= box.top && ev.clientY <= box.bottom) target = index;
+      if (ev.clientY < box.top + box.height / 2) {
+        insertAt = Math.min(insertAt, index);
+      }
     });
-    rows().forEach((row, index) => {
-      row.classList.toggle('drop-target', index === target && index !== from);
-      row.classList.toggle('carrying', index === from);
-    });
+
+    ghost.style.left = ev.clientX + 'px';
+    ghost.style.top = ev.clientY + 'px';
+
+    if (!list.length) return;
+    const anchor = list[Math.min(insertAt, list.length - 1)].getBoundingClientRect();
+    const y = insertAt < list.length
+      ? anchor.top - 5 + window.scrollY
+      : anchor.bottom + 5 + window.scrollY;
+    line.style.left = (anchor.left + window.scrollX) + 'px';
+    line.style.width = anchor.width + 'px';
+    line.style.top = y + 'px';
   };
 
-  const up = () => {
+  const move = ev => {
+    if (!moved && Math.abs(ev.clientY - startY) < 8) return;
+    moved = true;
+    ghost.hidden = false;
+    line.hidden = false;
+    rows().forEach((row, index) => row.classList.toggle('carrying', index === from));
+    place(ev);
+  };
+
+  const finish = () => {
     window.removeEventListener('pointermove', move);
-    window.removeEventListener('pointerup', up);
-    window.removeEventListener('pointercancel', up);
-    rows().forEach(row => {
-      row.classList.remove('drop-target');
-      row.classList.remove('carrying');
-    });
-    if (!moved || target === from) return;
+    window.removeEventListener('pointerup', finish);
+    window.removeEventListener('pointercancel', finish);
+    ghost.remove();
+    line.remove();
+    rows().forEach(row => row.classList.remove('carrying'));
+
+    if (!moved) return;
     suppressTimelineClickUntil = Date.now() + 300;
+
+    let to = insertAt;
+    if (to > from) to -= 1;
+    if (to === from) return;
+
     change(() => {
       const list = layersOf();
       const [movedLayer] = list.splice(from, 1);
-      list.splice(target, 0, movedLayer);
-      if (selectedLayer === from) selectedLayer = target;
-      else if (selectedLayer > from && selectedLayer <= target) selectedLayer--;
-      else if (selectedLayer < from && selectedLayer >= target) selectedLayer++;
+      list.splice(to, 0, movedLayer);
+      if (selectedLayer === from) selectedLayer = to;
+      else if (selectedLayer > from && selectedLayer <= to) selectedLayer--;
+      else if (selectedLayer < from && selectedLayer >= to) selectedLayer++;
     });
   };
 
   window.addEventListener('pointermove', move);
-  window.addEventListener('pointerup', up);
-  window.addEventListener('pointercancel', up);
+  window.addEventListener('pointerup', finish);
+  window.addEventListener('pointercancel', finish);
 }
 
 function renderTrack(track, clips, layer) {
@@ -1884,6 +1922,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
