@@ -591,6 +591,7 @@ function renderTrack(track, clips, layer) {
             clips,
             track,
             x: event.clientX,
+            gap0: clipGap(clip),
             clip: {...clip},
             before: structuredClone(project)
           };
@@ -599,15 +600,17 @@ function renderTrack(track, clips, layer) {
 
         handle.onpointermove = event => {
           if (!trimGesture) return;
-          const values = trimValues(
-            trimGesture.clip,
-            edge,
-            (event.clientX - trimGesture.x) / pixelsPerSecond
-          );
-          Object.assign(clip, values);
-          block.style.width = clip.duration * pixelsPerSecond + 'px';
-          duration.textContent = clip.duration.toFixed(1) + 'с';
-          $('#duration').value = clip.duration.toFixed(2);
+          const delta = (event.clientX - trimGesture.x) / pixelsPerSecond;
+
+          if (edge === 'left') {
+            clip.gap = Math.max(0, trimGesture.gap0 + delta);
+          } else {
+            const values = trimValues(trimGesture.clip, edge, delta);
+            Object.assign(clip, values);
+            block.style.width = clip.duration * pixelsPerSecond + 'px';
+            duration.textContent = clip.duration.toFixed(1) + 'с';
+            $('#duration').value = clip.duration.toFixed(2);
+          }
 
           let offset = 0;
           for (let index = 0; index < clips.length; index++) {
@@ -633,7 +636,8 @@ function renderTrack(track, clips, layer) {
           const original = trimGesture.clip;
           trimGesture = null;
           if (clip.duration !== original.duration ||
-              clip.start !== original.start) {
+              clip.start !== original.start ||
+              clipGap(clip) !== clipGap(original)) {
             history.push(before);
             if (history.length > 30) history.shift();
             save();
