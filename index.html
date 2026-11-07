@@ -66,7 +66,7 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .track{margin-top:10px}
 .track.active{box-shadow:inset 0 0 0 1px rgba(255,75,87,.6)}
 .track.carrying{opacity:.45}
-.drag-ghost{position:fixed;transform:translate(-50%,-50%);background:#2b303a;border:1px solid #ff4b57;color:#fff;border-radius:10px;padding:6px 12px;font-size:12px;line-height:1.2;z-index:80;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.5);white-space:nowrap}
+.drag-ghost{position:fixed;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;width:36px;height:30px;background:#2b303a;border:1px solid #ff4b57;color:#ff8b93;border-radius:8px;font-size:12px;line-height:1;z-index:80;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.5)}
 .insert-line{position:absolute;height:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
 .insert-mark{position:absolute;width:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
 .track.drop-target{box-shadow:inset 0 0 0 2px #ff4b57}
@@ -486,7 +486,8 @@ function startLayerReorder(from, startY) {
 
   const ghost = document.createElement('div');
   ghost.className = 'drag-ghost';
-  ghost.textContent = 'Слой ' + (from + 1);
+  ghost.textContent = String(from + 1);
+  ghost.setAttribute('title', 'Слой ' + (from + 1));
   ghost.hidden = true;
   document.body.append(ghost);
 
@@ -565,7 +566,8 @@ function startClipTransfer(fromLayer, clip, startY) {
 
   const ghost = document.createElement('div');
   ghost.className = 'drag-ghost';
-  ghost.textContent = clip.name;
+  ghost.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/></svg>';
+  ghost.setAttribute('title', clip.name);
   ghost.hidden = true;
   document.body.append(ghost);
 
@@ -2010,6 +2012,8 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
 
 
 
