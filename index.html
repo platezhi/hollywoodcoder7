@@ -73,6 +73,8 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #frame .lyr.overlay img,#frame .lyr.overlay video{height:auto}
 #frame .lyr.base{pointer-events:none}
 #frame .lyr.sel{outline:2px solid #ff4b57;outline-offset:2px}
+.selbox{position:fixed;border:2px dashed #ff4b57;box-sizing:border-box;pointer-events:auto;touch-action:none;cursor:move;z-index:60}
+.selbox .sel-handle{position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
 #frame .lyr-resize{display:none;position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
 #frame .lyr.sel .lyr-resize{display:block}
 #frame .lyr[hidden],#frame .lyr img[hidden],#frame .lyr video[hidden]{display:none}
@@ -195,6 +197,7 @@ nav .icon{width:25px;height:25px}
 <span>Удалить</span>
 </button>
 <label>Длительность <input id="duration" type="number" min=".1" step=".1"> сек</label>
+<button id="recenter" title="Вернуть слой в центр кадра">⟲ В центр</button>
 </div>
 
 <nav>
@@ -232,6 +235,7 @@ nav .icon{width:25px;height:25px}
 <input id="files" type="file" accept="image/*,video/*,.mov,.mp4,.m4v,.webm" multiple hidden>
 <input id="assetfile" type="file" accept="image/*" hidden>
 <input id="restorefile" type="file" accept=".json,application/json" hidden>
+<div id="selBox" class="selbox" hidden><span class="sel-handle"></span></div>
 <div id="toast" role="status" hidden></div>
 
 <script>
@@ -946,11 +950,7 @@ function ensureLayerViews(count) {
     wrap.append(img, video);
 
     if (i > 0) {
-      const handle = document.createElement('span');
-      handle.className = 'lyr-resize';
-      wrap.append(handle);
       bindOverlayDrag(wrap, i);
-      bindOverlayResize(handle, i);
     }
 
     frame.append(wrap);
@@ -1043,6 +1043,66 @@ function bindOverlayResize(handle, index) {
   });
 }
 
+function bindSelectionBox() {
+  const box = document.getElementById('selBox');
+  const handle = box.querySelector('.sel-handle');
+
+  const startGesture = (event, mode) => {
+    const item = selectedLayer > 0 ? clipAt(selectedLayer, position) : null;
+    if (!item) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const clip = item.clip;
+    const rect = $('#frame').getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const bx = Number.isFinite(clip.x) ? clip.x : .5;
+    const by = Number.isFinite(clip.y) ? clip.y : .5;
+    const bw = Number.isFinite(clip.w) ? clip.w : .5;
+    const before = structuredClone(project);
+    let moved = false;
+
+    const move = ev => {
+      moved = true;
+      if (mode === 'move') {
+        clip.x = bx + (ev.clientX - startX) / rect.width;
+        clip.y = by + (ev.clientY - startY) / rect.height;
+      } else {
+        clip.w = Math.max(.08, Math.min(1, bw + ((ev.clientX - startX) / rect.width) * 2));
+      }
+      preview();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (moved) {
+        history.push(before);
+        if (history.length > 30) history.shift();
+        save();
+      }
+      render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+
+  box.addEventListener('pointerdown', event => {
+    if (event.target === handle) return;
+    startGesture(event, 'move');
+  });
+  handle.addEventListener('pointerdown', event => startGesture(event, 'resize'));
+
+  window.addEventListener('scroll', () => {
+    const el = document.getElementById('selBox');
+    if (el && !el.hidden) preview();
+  }, true);
+}
+
+bindSelectionBox();
+
 function preview() {
   $('#clock').textContent =
     preciseTime(position) + ' / ' + preciseTime(total());
@@ -1107,6 +1167,20 @@ function preview() {
     if (playing && view.video.paused) view.video.play().catch(() => {});
     if (!playing && !view.video.paused) view.video.pause();
   });
+
+  const box = document.getElementById('selBox');
+  const selItem = selectedLayer > 0 ? clipAt(selectedLayer, position) : null;
+  const selView = selItem ? layerViews.get(selectedLayer) : null;
+  if (selItem && selView && !selView.wrap.hidden) {
+    const rect = selView.wrap.getBoundingClientRect();
+    box.hidden = false;
+    box.style.left = rect.left + 'px';
+    box.style.top = rect.top + 'px';
+    box.style.width = rect.width + 'px';
+    box.style.height = rect.height + 'px';
+  } else {
+    box.hidden = true;
+  }
 }
 function tick(ts) {
   if (!playing) return;
@@ -1321,6 +1395,19 @@ $('#duration').onchange = e => {
 
   stop();
   change(() => c.duration = n);
+};
+
+$('#recenter').onclick = () => {
+  if (selectedLayer === 0) return toast('Кнопка для слоёв 2 и выше');
+  const item = clipAt(selectedLayer, position);
+  const clip = item ? item.clip : currentClips().find(c => c.id === selected);
+  if (!clip) return toast('Выбери клип слоя');
+  stop();
+  change(() => {
+    clip.x = .5;
+    clip.y = .5;
+    clip.w = Number.isFinite(clip.w) ? Math.min(1, clip.w) : .5;
+  });
 };
 
 $('#undo').onclick = () => {
