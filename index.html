@@ -1052,30 +1052,13 @@ function preview() {
       let w = Number.isFinite(clip.w) ? clip.w : .5;
       if (w > 1) w = item ? (clip.w = 1) : 1;
       if (w < .08) w = item ? (clip.w = .08) : .08;
-      let x = Number.isFinite(clip.x) ? clip.x : .5;
-      let y = Number.isFinite(clip.y) ? clip.y : .5;
+      const x = Number.isFinite(clip.x) ? clip.x : .5;
+      const y = Number.isFinite(clip.y) ? clip.y : .5;
       wrap.style.width = (w * 100) + '%';
       wrap.style.height = 'auto';
       wrap.style.left = (x * 100) + '%';
       wrap.style.top = (y * 100) + '%';
       wrap.style.transform = 'translate(-50%,-50%)';
-
-      if (item) {
-        const frameRect = $('#frame').getBoundingClientRect();
-        const wrapRect = wrap.getBoundingClientRect();
-        if (frameRect.width > 0 && wrapRect.width > 0) {
-          const halfW = Math.min(.5, wrapRect.width / 2 / frameRect.width);
-          const halfH = Math.min(.5, wrapRect.height / 2 / frameRect.height);
-          const cx = Math.min(1 - halfW, Math.max(halfW, x));
-          const cy = Math.min(1 - halfH, Math.max(halfH, y));
-          if (cx !== x || cy !== y) {
-            clip.x = cx;
-            clip.y = cy;
-            wrap.style.left = (cx * 100) + '%';
-            wrap.style.top = (cy * 100) + '%';
-          }
-        }
-      }
     }
 
     view.img.hidden = !item || isVideo;
