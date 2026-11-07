@@ -968,6 +968,38 @@ function overlaySelected(index, clip) {
   return selectedLayer === index && clip && selected === clip.id;
 }
 
+function snapValue(value, targets, threshold) {
+  let best = value;
+  let bestDistance = threshold;
+  for (const target of targets) {
+    const distance = Math.abs(value - target);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = target;
+    }
+  }
+  return best;
+}
+
+function snapPosition(index, x, y) {
+  const frame = $('#frame').getBoundingClientRect();
+  const view = layerViews.get(index);
+  if (!view || !frame.width || !frame.height) return {x, y};
+  const rect = view.wrap.getBoundingClientRect();
+  const halfW = Math.min(.5, rect.width / (2 * frame.width));
+  const halfH = Math.min(.5, rect.height / (2 * frame.height));
+  const targetsX = index === 0 ? [.5] : [.5, halfW, 1 - halfW];
+  const targetsY = index === 0 ? [.5] : [.5, halfH, 1 - halfH];
+  return {
+    x: snapValue(x, targetsX, .018),
+    y: snapValue(y, targetsY, .018)
+  };
+}
+
+function snapScale(w) {
+  return snapValue(w, [.25, .5, .75, 1], .025);
+}
+
 function bindOverlayDrag(wrap, index) {
   wrap.addEventListener('pointerdown', event => {
     const item = clipAt(index, position);
@@ -986,8 +1018,11 @@ function bindOverlayDrag(wrap, index) {
 
     const move = ev => {
       moved = true;
-      clip.x = bx + (ev.clientX - startX) / rect.width;
-      clip.y = by + (ev.clientY - startY) / rect.height;
+      const snapped = snapPosition(index,
+        bx + (ev.clientX - startX) / rect.width,
+        by + (ev.clientY - startY) / rect.height);
+      clip.x = snapped.x;
+      clip.y = snapped.y;
       preview();
     };
     const up = () => {
@@ -1026,7 +1061,7 @@ function bindOverlayResize(handle, index) {
       const next = bw + ((ev.clientX - startX) / rect.width) * 2;
       const lo = index === 0 ? .1 : .08;
       const hi = index === 0 ? 4 : 3;
-      clip.w = Math.max(lo, Math.min(hi, next));
+      clip.w = snapScale(Math.max(lo, Math.min(hi, next)));
       preview();
     };
     const up = () => {
@@ -1069,10 +1104,14 @@ function bindSelectionBox() {
     const move = ev => {
       moved = true;
       if (mode === 'move') {
-        clip.x = bx + (ev.clientX - startX) / rect.width;
-        clip.y = by + (ev.clientY - startY) / rect.height;
+        const snapped = snapPosition(selectedLayer,
+          bx + (ev.clientX - startX) / rect.width,
+          by + (ev.clientY - startY) / rect.height);
+        clip.x = snapped.x;
+        clip.y = snapped.y;
       } else {
-        clip.w = Math.max(.08, Math.min(3, bw + ((ev.clientX - startX) / rect.width) * 2));
+        const next = Math.max(.08, Math.min(3, bw + ((ev.clientX - startX) / rect.width) * 2));
+        clip.w = snapScale(next);
       }
       preview();
     };
