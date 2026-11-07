@@ -31,7 +31,7 @@ select{background:#24262c;color:#eee;border:0;padding:10px;border-radius:8px}
 #saved{max-width:150px;text-align:right}
 .timeline{border:1px solid #303239;border-radius:14px;padding:14px;background:#191b20}
 .timelinehead{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:2px;color:#a5a8b1}
-#add{border:0;background:#ff4b57;border-radius:50%;font-size:35px;width:54px;height:54px;padding:0;color:white}
+#add{border:0;background:#ff4b57;border-radius:50%;width:54px;height:54px;padding:0;color:white}
 #editbar{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0;min-height:65px}
 #editbar[hidden]{display:none}
 #editbar input{width:65px;background:#24262b;border:1px solid #444;color:white;padding:7px;border-radius:5px}
@@ -75,8 +75,8 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #split{background:#ff4b57;color:white}
 .icon{display:block;width:24px;height:24px;flex:none;pointer-events:none}
 header button,.transport button,.dialoghead button,#editbar button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
-#add{display:grid;place-items:center;padding:0;line-height:1}
-#add .icon{width:30px;height:30px;stroke-width:2.3}
+#add{display:flex;align-items:center;justify-content:center;padding:0;line-height:0}
+#add .icon{width:22px;height:22px;stroke-width:2.4;display:block;margin:0}
 #play{width:56px;height:44px;min-width:56px;padding:0}
 #play .icon{width:24px;height:24px}
 nav .icon{width:25px;height:25px}
@@ -149,7 +149,7 @@ nav .icon{width:25px;height:25px}
 <div class="timelinehead">
 <span>МОНТАЖ · <span id="count">0</span></span>
 <button id="add" aria-label="Добавить медиа">
-<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
 </button>
 </div>
 <div id="timeline-scroll">
