@@ -29,7 +29,6 @@ select{background:#24262c;color:#eee;border:0;padding:10px;border-radius:8px}
 .transport{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#a8abb5}
 .transport button{font-size:21px;min-width:64px}
 #saved{max-width:150px;text-align:right}
-#seek{width:100%;accent-color:#ff525c;margin:12px 0}
 .timeline{border:1px solid #303239;border-radius:14px;padding:14px;background:#191b20}
 .timelinehead{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:2px;color:#a5a8b1}
 #add{border:0;background:#ff4b57;border-radius:50%;font-size:35px;width:54px;height:54px;padding:0;color:white}
@@ -145,7 +144,6 @@ nav .icon{width:25px;height:25px}
 </button>
 <span id="saved">Сохранено на устройстве</span>
 </div>
-<input id="seek" type="range" min="0" max="0" step=".001" value="0" aria-label="Позиция воспроизведения">
 
 <section class="timeline">
 <div class="timelinehead">
@@ -707,7 +705,6 @@ function render() {
   $('#ratio').value = project.ratio;
   $('#frame').style.aspectRatio = project.ratio.replace(':', '/');
   $('#count').textContent = project.clips.length;
-  $('#seek').max = total();
   renderTimeline();
 
   const c = project.clips.find(c => c.id === selected);
@@ -724,7 +721,6 @@ function preview() {
 
   $('#clock').textContent =
     preciseTime(position) + ' / ' + preciseTime(total());
-  $('#seek').value = position;
   updatePlayhead();
   $('#empty').hidden = !!item;
   v.hidden = !item || item.clip.type !== 'video';
@@ -785,12 +781,6 @@ $('#play').onclick = () => {
   setPlayButton(true);
   preview();
   requestAnimationFrame(tick);
-};
-
-$('#seek').oninput = e => {
-  stop();
-  position = +e.target.value;
-  preview();
 };
 
 function modal(title) {
