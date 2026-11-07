@@ -73,7 +73,7 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #frame .lyr.overlay img,#frame .lyr.overlay video{height:auto}
 #frame .lyr.base{pointer-events:none}
 #frame .lyr.sel{outline:2px solid #ff4b57;outline-offset:2px}
-.selbox{position:fixed;border:2px dashed #ff4b57;box-sizing:border-box;pointer-events:auto;touch-action:none;cursor:move;z-index:60}
+.selbox{position:absolute;border:2px dashed #ff4b57;box-sizing:border-box;pointer-events:auto;touch-action:none;cursor:move;z-index:60}
 .selbox .sel-handle{position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
 #frame .lyr-resize{display:none;position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
 #frame .lyr.sel .lyr-resize{display:block}
@@ -1069,7 +1069,7 @@ function bindSelectionBox() {
         clip.x = bx + (ev.clientX - startX) / rect.width;
         clip.y = by + (ev.clientY - startY) / rect.height;
       } else {
-        clip.w = Math.max(.08, Math.min(1, bw + ((ev.clientX - startX) / rect.width) * 2));
+        clip.w = Math.max(.08, Math.min(3, bw + ((ev.clientX - startX) / rect.width) * 2));
       }
       preview();
     };
@@ -1132,7 +1132,7 @@ function preview() {
     } else {
       const clip = item ? item.clip : {};
       let w = Number.isFinite(clip.w) ? clip.w : .5;
-      if (w > 1) w = item ? (clip.w = 1) : 1;
+      if (w > 3) w = item ? (clip.w = 3) : 3;
       if (w < .08) w = item ? (clip.w = .08) : .08;
       const x = Number.isFinite(clip.x) ? clip.x : .5;
       const y = Number.isFinite(clip.y) ? clip.y : .5;
@@ -1174,8 +1174,8 @@ function preview() {
   if (selItem && selView && !selView.wrap.hidden) {
     const rect = selView.wrap.getBoundingClientRect();
     box.hidden = false;
-    box.style.left = rect.left + 'px';
-    box.style.top = rect.top + 'px';
+    box.style.left = (rect.left + window.scrollX) + 'px';
+    box.style.top = (rect.top + window.scrollY) + 'px';
     box.style.width = rect.width + 'px';
     box.style.height = rect.height + 'px';
   } else {
@@ -1406,7 +1406,7 @@ $('#recenter').onclick = () => {
   change(() => {
     clip.x = .5;
     clip.y = .5;
-    clip.w = Number.isFinite(clip.w) ? Math.min(1, clip.w) : .5;
+    clip.w = Number.isFinite(clip.w) ? Math.min(3, clip.w) : .5;
   });
 };
 
@@ -1765,6 +1765,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
