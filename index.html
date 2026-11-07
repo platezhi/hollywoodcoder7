@@ -70,6 +70,11 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .drag-ghost{position:fixed;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;width:36px;height:30px;background:#2b303a;border:1px solid #ff4b57;color:#ff8b93;border-radius:8px;font-size:12px;line-height:1;z-index:80;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.5)}
 .insert-line{position:absolute;height:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
 .insert-mark{position:absolute;width:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
+.expbar{position:fixed;inset:0;background:rgba(8,9,12,.72);backdrop-filter:blur(4px);z-index:90;display:flex;align-items:center;justify-content:center;padding:20px}
+.expinner{width:min(360px,92vw);background:#1c1e24;border:1px solid #40434d;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;color:#eee}
+.expbar-line{height:8px;border-radius:6px;background:#2b303a;overflow:hidden}
+.expbar-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff4b57,#ff8b93);transition:width .2s}
+#exp-cancel{border:1px solid #3a3f4a;background:#23252b;color:#cfd3dd;border-radius:10px;padding:10px;cursor:pointer}
 .track.drop-target{box-shadow:inset 0 0 0 2px #ff4b57}
 .track:empty::after{content:'пустой слой';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#5f6674;pointer-events:none}
 .overlaypv{z-index:3}
@@ -132,6 +137,10 @@ nav .icon{width:25px;height:25px}
 <button id="film-btn" aria-label="Плёнка проекта" title="Плёнка проекта">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7.5 5v14M16.5 5v14"/><circle cx="5.6" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="5.6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5.6" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
 <span>Плёнка</span>
+</button>
+<button id="export-btn" aria-label="Экспорт видео">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m10 9 5 3-5 3z" fill="currentColor" stroke="none"/></svg>
+<span>Экспорт</span>
 </button>
 <b>Hollywood<span class="red">Coder</span></b>
 <button id="savecopy" aria-label="Скачать копию проекта">
@@ -245,6 +254,7 @@ nav .icon{width:25px;height:25px}
 <input id="assetfile" type="file" accept="image/*" hidden>
 <input id="restorefile" type="file" accept=".json,application/json" hidden>
 <div id="selBox" class="selbox" hidden><span class="sel-handle"></span></div>
+<div id="exp" class="expbar" hidden><div class="expinner"><b>Экспорт видео</b><span id="exp-pct">0%</span><div class="expbar-line"><i id="exp-fill"></i></div><button id="exp-cancel" type="button">Отменить</button></div></div>
 <div id="toast" role="status" hidden></div>
 
 <script>
@@ -2080,6 +2090,187 @@ $('#restorefile').onchange = async e => {
   }
 };
 
+/* ---------- Экспорт видео ---------- */
+function exportMime() {
+  const candidates = [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  if (!window.MediaRecorder) return '';
+  for (const mime of candidates) {
+    try {
+      if (MediaRecorder.isTypeSupported(mime)) return mime;
+    } catch (_) {}
+  }
+  return '';
+}
+
+function showExportResult(blob, mime) {
+  const p = modal('Предпросмотр видео');
+  const url = URL.createObjectURL(blob);
+  const isMp4 = mime.indexOf('mp4') >= 0;
+
+  const v = document.createElement('video');
+  v.src = url;
+  v.controls = true;
+  v.playsInline = true;
+  v.style.width = '100%';
+  v.style.borderRadius = '12px';
+  v.style.background = '#000';
+  p.append(v);
+
+  const info = document.createElement('p');
+  info.textContent = 'Формат: ' + (isMp4 ? 'MP4' : 'WebM') +
+    ' · ' + (blob.size / 1048576).toFixed(1) + ' МБ. Проверь результат и скачай.';
+  p.append(info);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hollywoodcoder-' + Date.now() + (isMp4 ? '.mp4' : '.webm');
+  a.className = 'primary';
+  a.textContent = 'Скачать';
+  a.style.display = 'block';
+  a.style.textAlign = 'center';
+  a.style.padding = '12px';
+  a.style.borderRadius = '12px';
+  a.style.color = '#fff';
+  a.style.textDecoration = 'none';
+  p.append(a);
+
+  button(p, 'Закрыть', () => {
+    v.pause();
+    URL.revokeObjectURL(url);
+    $('#modal').close();
+  });
+}
+
+let exportCancel = null;
+
+$('#export-btn').onclick = async () => {
+  if (total() <= 0) return toast('Добавь медиа для экспорта');
+  const mime = exportMime();
+  if (!mime) return toast('Этот браузер не умеет записывать видео');
+
+  stop();
+
+  const ratio = project.ratio.split(':').map(Number);
+  const H = 1280;
+  const W = Math.round((H * ratio[0]) / ratio[1] / 2) * 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const stream = canvas.captureStream(0);
+  const track = stream.getVideoTracks()[0];
+  const recorder = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: 8000000
+  });
+  const chunks = [];
+  recorder.ondataavailable = ev => {
+    if (ev.data && ev.data.size) chunks.push(ev.data);
+  };
+
+  const bar = $('#exp');
+  const fill = $('#exp-fill');
+  const pct = $('#exp-pct');
+  bar.hidden = false;
+  fill.style.width = '0%';
+  pct.textContent = '0%';
+
+  position = 0;
+  last = performance.now();
+  playing = true;
+  setPlayButton(true);
+  preview();
+
+  let cancelled = false;
+  exportCancel = () => { cancelled = true; };
+
+  const finished = new Promise(resolve => {
+    recorder.onstop = () => {
+      playing = false;
+      setPlayButton(false);
+      bar.hidden = true;
+      exportCancel = null;
+      const blob = new Blob(chunks, { type: mime.split(';')[0] });
+      if (!cancelled && blob.size) showExportResult(blob, mime);
+      else if (cancelled) toast('Экспорт отменён');
+      resolve();
+    };
+  });
+
+  recorder.start(200);
+
+  const draw = () => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    layersOf().forEach((clips, index) => {
+      const item = clipAt(index, position);
+      if (!item) return;
+      const view = layerViews.get(index);
+      if (!view || view.wrap.hidden) return;
+
+      const media = view.video.hidden ? view.img : view.video;
+      if (!media || media.hidden) return;
+
+      const mw = media.videoWidth || media.naturalWidth || 0;
+      const mh = media.videoHeight || media.naturalHeight || 0;
+      if (!mw || !mh) return;
+
+      const clip = item.clip;
+      const px = Number.isFinite(clip.x) ? clip.x : .5;
+      const py = Number.isFinite(clip.y) ? clip.y : .5;
+
+      try {
+        if (index === 0) {
+          const fit = Math.min(W / mw, H / mh);
+          const scale = (Number.isFinite(clip.w) ? clip.w : 1) * fit;
+          ctx.save();
+          ctx.translate(W / 2 + (px - .5) * W, H / 2 + (py - .5) * H);
+          ctx.scale(scale, scale);
+          ctx.drawImage(media, -mw / 2, -mh / 2, mw, mh);
+          ctx.restore();
+        } else {
+          const w = (Number.isFinite(clip.w) ? clip.w : .5) * W;
+          const h = (w * mh) / mw;
+          ctx.drawImage(media, px * W - w / 2, py * H - h / 2, w, h);
+        }
+      } catch (_) {}
+    });
+
+    if (track && track.requestFrame) track.requestFrame();
+
+    const progress = total() > 0 ? Math.min(1, position / total()) : 0;
+    fill.style.width = (progress * 100).toFixed(0) + '%';
+    pct.textContent = (progress * 100).toFixed(0) + '%';
+  };
+
+  const startedAt = performance.now();
+
+  const timer = setInterval(() => {
+    const elapsed = (performance.now() - startedAt) / 1000;
+    position = Math.min(total(), elapsed);
+    preview();
+    draw();
+    if (cancelled || position >= total() - .02) {
+      clearInterval(timer);
+      if (recorder.state !== 'inactive') recorder.stop();
+    }
+  }, 33);
+
+  await finished;
+};
+
+$('#exp-cancel').onclick = () => {
+  if (exportCancel) exportCancel();
+};
+
 $('#generation').onclick = () => {
   const p = modal('Генерация Veo');
   const note = document.createElement('p');
@@ -2129,6 +2320,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
