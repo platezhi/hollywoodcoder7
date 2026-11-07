@@ -71,7 +71,6 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #frame .lyr img,#frame .lyr video{display:block;width:100%;object-fit:contain;pointer-events:none}
 #frame .lyr.base img,#frame .lyr.base video{height:100%}
 #frame .lyr.overlay img,#frame .lyr.overlay video{height:auto}
-#frame .lyr.base{pointer-events:none}
 #frame .lyr.sel{outline:2px solid #ff4b57;outline-offset:2px}
 .selbox{position:absolute;border:2px dashed #ff4b57;box-sizing:border-box;pointer-events:auto;touch-action:none;cursor:move;z-index:60}
 .selbox .sel-handle{position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
@@ -949,9 +948,7 @@ function ensureLayerViews(count) {
     video.hidden = true;
     wrap.append(img, video);
 
-    if (i > 0) {
-      bindOverlayDrag(wrap, i);
-    }
+    bindOverlayDrag(wrap, i);
 
     frame.append(wrap);
     layerViews.set(i, {wrap, img, video});
@@ -964,7 +961,7 @@ function ensureLayerViews(count) {
 }
 
 function overlaySelected(index, clip) {
-  return index > 0 && selectedLayer === index && clip && selected === clip.id;
+  return selectedLayer === index && clip && selected === clip.id;
 }
 
 function bindOverlayDrag(wrap, index) {
@@ -1023,7 +1020,9 @@ function bindOverlayResize(handle, index) {
     const move = ev => {
       moved = true;
       const next = bw + ((ev.clientX - startX) / rect.width) * 2;
-      clip.w = Math.max(.08, Math.min(1, next));
+      const lo = index === 0 ? .1 : .08;
+      const hi = index === 0 ? 4 : 3;
+      clip.w = Math.max(lo, Math.min(hi, next));
       preview();
     };
     const up = () => {
@@ -1048,7 +1047,7 @@ function bindSelectionBox() {
   const handle = box.querySelector('.sel-handle');
 
   const startGesture = (event, mode) => {
-    const item = selectedLayer > 0 ? clipAt(selectedLayer, position) : null;
+    const item = clipAt(selectedLayer, position);
     if (!item) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1124,11 +1123,18 @@ function preview() {
     wrap.classList.toggle('sel', !!item && overlaySelected(index, item.clip));
 
     if (index === 0) {
+      const clip = item ? item.clip : {};
+      let sc = Number.isFinite(clip.w) ? clip.w : 1;
+      if (sc > 4) sc = item ? (clip.w = 4) : 4;
+      if (sc < .1) sc = item ? (clip.w = .1) : .1;
+      const bx = Number.isFinite(clip.x) ? clip.x : .5;
+      const by = Number.isFinite(clip.y) ? clip.y : .5;
       wrap.style.left = '0';
       wrap.style.top = '0';
       wrap.style.width = '100%';
       wrap.style.height = '100%';
-      wrap.style.transform = 'none';
+      wrap.style.transform =
+        'translate(' + ((bx - .5) * 100) + '%,' + ((by - .5) * 100) + '%) scale(' + sc + ')';
     } else {
       const clip = item ? item.clip : {};
       let w = Number.isFinite(clip.w) ? clip.w : .5;
@@ -1169,7 +1175,7 @@ function preview() {
   });
 
   const box = document.getElementById('selBox');
-  const selItem = selectedLayer > 0 ? clipAt(selectedLayer, position) : null;
+  const selItem = clipAt(selectedLayer, position);
   const selView = selItem ? layerViews.get(selectedLayer) : null;
   if (selItem && selView && !selView.wrap.hidden) {
     const rect = selView.wrap.getBoundingClientRect();
@@ -1398,7 +1404,6 @@ $('#duration').onchange = e => {
 };
 
 $('#recenter').onclick = () => {
-  if (selectedLayer === 0) return toast('Кнопка для слоёв 2 и выше');
   const item = clipAt(selectedLayer, position);
   const clip = item ? item.clip : currentClips().find(c => c.id === selected);
   if (!clip) return toast('Выбери клип слоя');
@@ -1406,7 +1411,7 @@ $('#recenter').onclick = () => {
   change(() => {
     clip.x = .5;
     clip.y = .5;
-    clip.w = Number.isFinite(clip.w) ? Math.min(3, clip.w) : .5;
+    clip.w = selectedLayer === 0 ? 1 : .5;
   });
 };
 
@@ -1765,6 +1770,8 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
 
 
 
