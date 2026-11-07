@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#101114">
 <title>HollywoodCoder</title>
 <style>
@@ -58,11 +58,17 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;padding:16px 22px;border:1px solid #505461;border-radius:14px;background:#30333b;color:white;z-index:20;box-shadow:0 5px 30px #0008}
 #timeline-scroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding:0 14px 0 0;touch-action:pan-x;scrollbar-width:none;-ms-overflow-style:none}
 #timeline-scroll::-webkit-scrollbar{display:none;width:0;height:0}
-#timeline-content{position:relative;min-height:117.5px}
+#timeline-content{position:relative;min-height:157.5px}
 #ruler{height:42px;position:relative;cursor:crosshair;touch-action:pan-x}
 .tick{position:absolute;top:0;height:36px;border-left:1px solid #555b67;padding-left:5px;font-size:11px;color:#c8cbd2;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
 .tick.minor{top:25px;height:11px;padding:0;border-color:#515663}
-#track{display:block;position:relative;overflow:visible;padding:0;height:52.5px;min-height:52.5px;background:#111318;border-radius:6px}
+#track,.track{display:block;position:relative;overflow:visible;padding:0;height:52.5px;min-height:52.5px;background:#111318;border-radius:6px}
+.track{margin-top:10px}
+.track.active{box-shadow:inset 0 0 0 1px rgba(255,75,87,.6)}
+.track:empty::after{content:'пустой слой';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#5f6674;pointer-events:none}
+.overlaypv{z-index:3}
+.headcontrols{display:flex;align-items:center;gap:8px}
+#add-over{height:32px;padding:0 12px;border-radius:999px;background:#262a33;border:1px solid #34363c;color:#cfd3dd;font-size:12px;line-height:1;display:inline-flex;align-items:center;white-space:nowrap}
 .filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
 .filmclip.selected{border:3px solid white;z-index:2}
 .clip-name{position:absolute;left:17px;top:3px;background:#ff4b57;color:#fff;font-size:11px;font-weight:600;border-radius:6px;padding:4px 6px;white-space:nowrap;max-width:calc(100% - 34px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
@@ -126,8 +132,6 @@ nav .icon{width:25px;height:25px}
 
 <section id="stage">
 <div id="frame">
-<video id="video" playsinline controls hidden></video>
-<img id="photo" hidden alt="Предпросмотр">
 <div id="empty">
 <div class="film">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"/></svg>
@@ -148,15 +152,18 @@ nav .icon{width:25px;height:25px}
 
 <section class="timeline">
 <div class="timelinehead">
-<span>МОНТАЖ · <span id="count">0</span></span>
+<span>СЛОЁВ · <span id="countLayers">1</span> · КЛИПОВ · <span id="count">0</span></span>
+<div class="headcontrols">
+<button id="add-over" aria-label="Добавить слой">＋ слой</button>
 <button id="add" aria-label="Добавить медиа">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 6.5v11M6.5 12h11"/></svg>
 </button>
 </div>
+</div>
 <div id="timeline-scroll">
 <div id="timeline-content">
 <div id="ruler"></div>
-<div id="track" aria-label="Видеодорожка"></div>
+<div id="tracks"></div>
 <div id="playhead" aria-label="Указатель времени"></div>
 </div>
 </div>
@@ -258,13 +265,24 @@ function trimValues(clip, edge, delta) {
 
 function timelineTime(event) {
   const bounds = $('#timeline-content').getBoundingClientRect();
-  return Math.max(0, Math.min(total(),
+  return Math.max(0, Math.min(totalAll(),
     (event.clientX - bounds.left) / pixelsPerSecond));
+}
+
+function clipAtLayer(t) {
+  let start = 0;
+  for (const clip of currentClips()) {
+    if (t >= start && t < start + clip.duration) {
+      return {clip, start};
+    }
+    start += clip.duration;
+  }
+  return null;
 }
 
 function updatePlayhead() {
   $('#playhead').style.left = position * pixelsPerSecond + 'px';
-  const item = active();
+  const item = clipAtLayer(position);
   const offset = item ? position - item.start : 0;
   $('#split').disabled =
     !item || offset < .1 || item.clip.duration - offset < .1;
@@ -362,23 +380,63 @@ function renderRuler() {
   ruler.replaceChildren(fragment);
 }
 
+function layersOf(projectObj) {
+  const p = projectObj || project;
+  if (!Array.isArray(p.layers) || !p.layers.length) p.layers = [[]];
+  return p.layers;
+}
+
+function layerAtKey(key) {
+  return layersOf()[key] || [];
+}
+
+function currentClips() {
+  return layerAtKey(selectedLayer);
+}
+
 function renderTimeline() {
   const width = Math.max(
     $('#timeline-scroll').clientWidth - 2,
-    total() * pixelsPerSecond + 60
+    totalAll() * pixelsPerSecond + 60
   );
   $('#timeline-content').style.width = width + 'px';
   renderRuler();
 
-  const track = $('#track');
-  track.replaceChildren();
+  const host = $('#tracks');
+  const list = layersOf();
+  host.replaceChildren();
+
+  list.forEach((clips, index) => {
+    const track = document.createElement('div');
+    track.className = 'track' + (index === selectedLayer ? ' active' : '');
+    track.dataset.layer = String(index);
+    track.setAttribute('aria-label', 'Слой ' + (index + 1));
+    host.append(track);
+    renderTrack(track, clips, index);
+  });
+
+  $('#countLayers').textContent = list.length;
+  $('#count').textContent = currentClips().length;
+  updatePlayhead();
+}
+
+function renderTrack(track, clips, layer) {
   let start = 0;
 
-  for (const clip of project.clips) {
+  track.onclick = event => {
+    if (event.target !== track || !project) return;
+    stop();
+    selectedLayer = layer;
+    selected = null;
+    position = timelineTime(event);
+    render();
+  };
+
+  for (const clip of clips) {
     const clipStart = start;
+    const isSelected = clip.id === selected && selectedLayer === layer;
     const block = document.createElement('div');
-    block.className = 'filmclip' +
-      (clip.id === selected ? ' selected' : '');
+    block.className = 'filmclip' + (isSelected ? ' selected' : '');
     block.style.left = start * pixelsPerSecond + 'px';
     block.style.width = clip.duration * pixelsPerSecond + 'px';
     block.tabIndex = 0;
@@ -407,6 +465,7 @@ function renderTimeline() {
           event.target.closest('.trim-handle')) return;
       stop();
       selected = clip.id;
+      selectedLayer = layer;
       position = Math.max(clipStart, Math.min(
         clipStart + clip.duration - .001,
         timelineTime(event)
@@ -418,12 +477,13 @@ function renderTimeline() {
       if (event.key === 'Enter') {
         stop();
         selected = clip.id;
+        selectedLayer = layer;
         position = clipStart;
         render();
       }
     };
 
-    if (clip.id === selected) {
+    if (isSelected) {
       for (const edge of ['left', 'right']) {
         const handle = document.createElement('button');
         handle.className = 'trim-handle ' + edge;
@@ -439,6 +499,8 @@ function renderTimeline() {
           trimGesture = {
             id: clip.id,
             edge,
+            clips,
+            track,
             x: event.clientX,
             clip: {...clip},
             before: structuredClone(project)
@@ -459,15 +521,16 @@ function renderTimeline() {
           $('#duration').value = clip.duration.toFixed(2);
 
           let offset = 0;
-          for (const item of project.clips) {
-            const child = track.children[project.clips.indexOf(item)];
+          for (let index = 0; index < clips.length; index++) {
+            const child = track.children[index];
+            if (!child) continue;
             child.style.left = offset * pixelsPerSecond + 'px';
-            offset += item.duration;
+            offset += clips[index].duration;
           }
 
           $('#timeline-content').style.width = Math.max(
             $('#timeline-scroll').clientWidth,
-            total() * pixelsPerSecond + 60
+            totalAll() * pixelsPerSecond + 60
           ) + 'px';
           position = Math.min(position, total());
           preview();
@@ -501,9 +564,7 @@ function renderTimeline() {
     track.append(block);
     start += clip.duration;
   }
-  updatePlayhead();
 }
-
 document.addEventListener('DOMContentLoaded', () => {
   const viewport = $('#timeline-scroll');
   const distance = touches => Math.hypot(
@@ -519,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     stop();
 
     if (trimGesture) {
-      const clip = project.clips.find(c => c.id === trimGesture.id);
+      const clip = layersOf().flat().find(c => c.id === trimGesture.id);
       if (clip) Object.assign(clip, trimGesture.clip);
       trimGesture = null;
     }
@@ -543,15 +604,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $('#timeline-content').style.width = Math.max(
       viewport.clientWidth - 2,
-      total() * pixelsPerSecond + 60
+      totalAll() * pixelsPerSecond + 60
     ) + 'px';
 
-    let start = 0;
-    project.clips.forEach((clip, index) => {
-      const block = $('#track').children[index];
-      block.style.left = start * pixelsPerSecond + 'px';
-      block.style.width = clip.duration * pixelsPerSecond + 'px';
-      start += clip.duration;
+    layersOf().forEach((clips, layerIndex) => {
+      const track = $('#tracks').children[layerIndex];
+      if (!track) return;
+      let start = 0;
+      clips.forEach((clip, index) => {
+        const block = track.children[index];
+        if (!block) return;
+        block.style.left = start * pixelsPerSecond + 'px';
+        block.style.width = clip.duration * pixelsPerSecond + 'px';
+        start += clip.duration;
+      });
     });
 
     const center = midpoint(event.touches) -
@@ -587,16 +653,9 @@ document.addEventListener('DOMContentLoaded', () => {
         Date.now() < suppressTimelineClickUntil) return;
     stop();
     position = timelineTime(event);
-    const item = active();
+    const item = clipAtLayer(position);
     selected = item ? item.clip.id : null;
     render();
-  };
-
-  $('#track').onclick = event => {
-    if (event.target !== $('#track') || !project) return;
-    stop();
-    position = timelineTime(event);
-    preview();
   };
 
   function zoomAt(clientX, factor) {
@@ -609,16 +668,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $('#timeline-content').style.width = Math.max(
       viewport.clientWidth - 2,
-      total() * pixelsPerSecond + 60
+      totalAll() * pixelsPerSecond + 60
     ) + 'px';
 
-    let start = 0;
-    project.clips.forEach((clip, index) => {
-      const block = $('#track').children[index];
-      if (!block) return;
-      block.style.left = start * pixelsPerSecond + 'px';
-      block.style.width = clip.duration * pixelsPerSecond + 'px';
-      start += clip.duration;
+    layersOf().forEach((clips, layerIndex) => {
+      const track = $('#tracks').children[layerIndex];
+      if (!track) return;
+      let start = 0;
+      clips.forEach((clip, index) => {
+        const block = track.children[index];
+        if (!block) return;
+        block.style.left = start * pixelsPerSecond + 'px';
+        block.style.width = clip.duration * pixelsPerSecond + 'px';
+        start += clip.duration;
+      });
     });
 
     viewport.scrollLeft = Math.max(0, anchor * pixelsPerSecond - center);
@@ -669,6 +732,8 @@ let project;
 let projects = [];
 let assets = [];
 let selected = null;
+let selectedLayer = 0;
+let importLayer = 0;
 let position = 0;
 let playing = false;
 let last = 0;
@@ -704,8 +769,25 @@ function read(store, key) {
   return request(db.transaction(store).objectStore(store).get(key));
 }
 
+function layerTotal(clips) {
+  return clips.reduce((n, c) => n + c.duration, 0);
+}
+
 function total() {
-  return project.clips.reduce((n, c) => n + c.duration, 0);
+  return layersOf().reduce((max, clips) => Math.max(max, layerTotal(clips)), 0);
+}
+
+function totalAll() {
+  return total();
+}
+
+function clipAt(layerIndex, t) {
+  let start = 0;
+  for (const clip of layerAtKey(layerIndex)) {
+    if (t >= start && t < start + clip.duration) return {clip, start};
+    start += clip.duration;
+  }
+  return null;
 }
 
 function fmt(n) {
@@ -736,22 +818,12 @@ function change(fn) {
   render();
 }
 
+const layerViews = new Map();
+
 function stop() {
   playing = false;
-  $('#video').pause();
+  for (const view of layerViews.values()) view.video.pause();
   setPlayButton(false);
-}
-
-function active() {
-  let start = 0;
-  for (const clip of project.clips) {
-    if (position < start + clip.duration ||
-        clip === project.clips.at(-1)) {
-      return {clip, start};
-    }
-    start += clip.duration;
-  }
-  return null;
 }
 
 function render() {
@@ -759,62 +831,79 @@ function render() {
   $('#title').value = project.name;
   $('#ratio').value = project.ratio;
   $('#frame').style.aspectRatio = project.ratio.replace(':', '/');
-  $('#count').textContent = project.clips.length;
   renderTimeline();
 
-  const c = project.clips.find(c => c.id === selected);
+  const c = currentClips().find(x => x.id === selected);
   $('#editbar').hidden = !c;
   if (c) $('#duration').value = c.duration;
   $('#undo').disabled = !history.length;
   preview();
 }
 
-function preview() {
-  const item = active();
-  const v = $('#video');
-  const img = $('#photo');
-
-  $('#clock').textContent =
-    preciseTime(position) + ' / ' + preciseTime(total());
-  updatePlayhead();
-  $('#empty').hidden = !!item;
-  v.hidden = !item || item.clip.type !== 'video';
-  img.hidden = !item || item.clip.type === 'video';
-
-  if (!item) {
-    v.pause();
-    return;
+function ensureLayerViews(count) {
+  const frame = $('#frame');
+  for (let i = 0; i < count; i++) {
+    if (layerViews.has(i)) continue;
+    const img = document.createElement('img');
+    img.className = 'overlaypv';
+    img.alt = '';
+    img.hidden = true;
+    const video = document.createElement('video');
+    video.className = 'overlaypv';
+    video.playsInline = true;
+    video.muted = true;
+    video.hidden = true;
+    frame.append(img, video);
+    layerViews.set(i, {img, video});
   }
-
-  const c = item.clip;
-  const url = urls.get(c.media);
-  if (!url) {
-    stop();
-    toast('Медиа отсутствует. Импортируй копию проекта.');
-    return;
-  }
-
-  if (c.type === 'video') {
-    if (v.dataset.media !== c.media) {
-      v.src = url;
-      v.dataset.media = c.media;
-    }
-    const target = c.start + Math.max(0, position - item.start);
-    if (Math.abs(v.currentTime - target) > .3) {
-      v.currentTime = target;
-    }
-    if (playing && v.paused) {
-      v.play().catch(() => {
-        stop();
-        toast('Нажми воспроизведение ещё раз');
-      });
-    }
-  } else {
-    v.pause();
-    img.src = url;
+  for (const [index, view] of [...layerViews]) {
+    if (index < count) continue;
+    view.img.remove();
+    view.video.remove();
+    layerViews.delete(index);
   }
 }
 
+function preview() {
+  $('#clock').textContent =
+    preciseTime(position) + ' / ' + preciseTime(total());
+  updatePlayhead();
+  $('#empty').hidden = total() > 0;
+
+  const list = layersOf();
+  ensureLayerViews(list.length);
+
+  list.forEach((clips, index) => {
+    const view = layerViews.get(index);
+    if (!view) return;
+    const item = clipAt(index, position);
+    const isVideo = !!item && item.clip.type === 'video';
+
+    view.img.hidden = !item || isVideo;
+    view.video.hidden = !item || !isVideo;
+
+    if (!item) { view.video.pause(); return; }
+    const url = urls.get(item.clip.media);
+    if (!url) { view.video.pause(); return; }
+
+    if (!isVideo) {
+      view.video.pause();
+      if (view.img.src !== url) view.img.src = url;
+      return;
+    }
+
+    if (view.video.dataset.media !== item.clip.media) {
+      view.video.src = url;
+      view.video.dataset.media = item.clip.media;
+    }
+    const target = item.clip.start + Math.max(0, position - item.start);
+    if (Math.abs(view.video.currentTime - target) > .3) {
+      view.video.currentTime = target;
+    }
+    if (playing && view.video.paused) view.video.play().catch(() => {});
+    if (!playing && !view.video.paused) view.video.pause();
+  });
+}
 function tick(ts) {
   if (!playing) return;
   position += (ts - last) / 1000;
@@ -829,7 +918,7 @@ function tick(ts) {
 
 $('#play').onclick = () => {
   if (playing) return stop();
-  if (!project.clips.length) return toast('Добавь медиа через +');
+  if (total() <= 0) return toast('Добавь медиа через +');
   if (position >= total()) position = 0;
   playing = true;
   last = performance.now();
@@ -858,9 +947,22 @@ function button(parent, text, fn, primary = false) {
 $('#close').onclick = () => $('#modal').close();
 
 $('#add').onclick = () => {
-  const p = modal('Добавить в монтаж');
+  importLayer = selectedLayer;
+  const p = modal('Добавить в слой ' + (selectedLayer + 1));
   button(p, 'Видео или фото из галереи', () => $('#files').click(), true);
-  button(p, 'Ассет из библиотеки', () => showAssets(true));
+  if (selectedLayer === 0) {
+    button(p, 'Ассет из библиотеки', () => showAssets(true));
+  }
+};
+
+$('#add-over').onclick = () => {
+  change(() => {
+    layersOf().push([]);
+    selectedLayer = layersOf().length - 1;
+    selected = null;
+  });
+  importLayer = selectedLayer;
+  $('#add').click();
 };
 
 async function mediaUrl(id) {
@@ -927,15 +1029,19 @@ $('#files').onchange = async e => {
         const clip = {
           id: uid(), media, name: file.name, start: 0, ...info
         };
-        project.clips.push(clip);
+        const index = Math.max(0, Math.min(importLayer, layersOf().length - 1));
+        const list = layerAtKey(index);
+        list.push(clip);
         selected = clip.id;
-        position = total() - clip.duration;
+        selectedLayer = index;
+        position = layerTotal(list) - clip.duration;
       });
     } catch (err) {
       if (!urls.has(media)) URL.revokeObjectURL(url);
       toast(err.message);
     }
   }
+  importLayer = selectedLayer;
   $('#modal').close();
 };
 
@@ -948,7 +1054,8 @@ $('#ratio').onchange = e => change(() => project.ratio = e.target.value);
 $('#remove').onclick = () => {
   stop();
   change(() => {
-    project.clips = project.clips.filter(c => c.id !== selected);
+    const key = clipsKey();
+    project[key] = project[key].filter(c => c.id !== selected);
     selected = null;
   });
 };
@@ -956,15 +1063,17 @@ $('#remove').onclick = () => {
 $('#duplicate').onclick = () => {
   stop();
   change(() => {
-    const i = project.clips.findIndex(c => c.id === selected);
-    const copy = {...project.clips[i], id: uid()};
-    project.clips.splice(i + 1, 0, copy);
+    const list = currentClips();
+    const i = list.findIndex(c => c.id === selected);
+    if (i < 0) return;
+    const copy = {...list[i], id: uid()};
+    list.splice(i + 1, 0, copy);
     selected = copy.id;
   });
 };
 
 $('#split').onclick = () => {
-  const item = active();
+  const item = clipAtLayer(position);
   if (!item) return;
   const off = position - item.start;
   const c = item.clip;
@@ -975,6 +1084,7 @@ $('#split').onclick = () => {
 
   stop();
   change(() => {
+    const list = currentClips();
     const right = {
       ...c,
       id: uid(),
@@ -982,13 +1092,13 @@ $('#split').onclick = () => {
       duration: c.duration - off
     };
     c.duration = off;
-    project.clips.splice(project.clips.indexOf(c) + 1, 0, right);
+    list.splice(list.indexOf(c) + 1, 0, right);
     selected = right.id;
   });
 };
 
 $('#duration').onchange = e => {
-  const c = project.clips.find(x => x.id === selected);
+  const c = currentClips().find(x => x.id === selected);
   const n = +e.target.value;
   if (!c) return;
 
@@ -1007,7 +1117,9 @@ $('#undo').onclick = () => {
   if (!history.length) return;
   stop();
   project = history.pop();
+  layersOf();
   selected = null;
+  selectedLayer = 0;
   save();
   render();
 };
@@ -1132,7 +1244,7 @@ async function showAssets(insert = false) {
             start: 0,
             duration: 3
           };
-          project.clips.push(c);
+          currentClips().push(c);
           selected = c.id;
           position = total() - 3;
         });
@@ -1149,11 +1261,19 @@ $('#assets').onclick = () => showAssets(false);
 async function openProject(p) {
   stop();
   await saveQueue.catch(() => {});
+  if (!Array.isArray(p.layers) || !p.layers.length) {
+    p.layers = [Array.isArray(p.clips) ? p.clips : []];
+    if (Array.isArray(p.overlays) && p.overlays.length) p.layers.push(p.overlays);
+    delete p.clips;
+    delete p.overlays;
+  }
   project = p;
   history = [];
   selected = null;
+  selectedLayer = 0;
+  importLayer = 0;
   position = 0;
-  for (const c of p.clips) await mediaUrl(c.media);
+  for (const clip of layersOf().flat()) await mediaUrl(clip.media);
   localStorage.setItem('hc2-current', p.id);
   $('#modal').close();
   render();
@@ -1164,7 +1284,7 @@ function newProject() {
     id: uid(),
     name: 'Новый фильм',
     ratio: '9:16',
-    clips: []
+    layers: [[]]
   };
 }
 
@@ -1185,7 +1305,8 @@ $('#projects').onclick = async () => {
     () => $('#restorefile').click());
 
   for (const item of projects) {
-    button(p, item.name + ' · ' + item.clips.length + ' клипов',
+    const clipCount = (item.layers || []).reduce((n, list) => n + list.length, 0);
+    button(p, item.name + ' · ' + clipCount + ' клипов',
       () => openProject(item));
   }
 };
@@ -1204,8 +1325,9 @@ $('#savecopy').onclick = async () => {
   try {
     const snapshot = structuredClone(project);
     const media = {};
+    const allClips = (snapshot.layers || []).flat();
 
-    for (const id of new Set(snapshot.clips.map(c => c.media))) {
+    for (const id of new Set(allClips.map(c => c.media))) {
       const blob = await read('media', id);
       if (!blob) throw new Error('Часть медиа недоступна');
       media[id] = await dataUrl(blob);
@@ -1235,8 +1357,7 @@ $('#restorefile').onchange = async e => {
 
   try {
     const data = JSON.parse(await file.text());
-    if (data.format !== 'hollywoodcoder-project-v2' ||
-        !Array.isArray(data.project?.clips)) {
+    if (data.format !== 'hollywoodcoder-project-v2' || !data.project) {
       throw new Error('Неверный формат проекта');
     }
 
@@ -1246,8 +1367,18 @@ $('#restorefile').onchange = async e => {
       throw new Error('Повреждены настройки');
     }
 
+    if (!Array.isArray(p.layers) || !p.layers.length) {
+      p.layers = [Array.isArray(p.clips) ? p.clips : []];
+      if (Array.isArray(p.overlays) && p.overlays.length) {
+        p.layers.push(p.overlays);
+      }
+      delete p.clips;
+      delete p.overlays;
+    }
+
     const ids = new Map();
-    for (const c of p.clips) {
+    for (const layerClips of p.layers) {
+      for (const c of layerClips) {
       if (!['video', 'image'].includes(c.type) ||
           typeof c.name !== 'string' ||
           !Number.isFinite(c.duration) || c.duration <= 0 ||
@@ -1274,8 +1405,9 @@ $('#restorefile').onchange = async e => {
         ids.set(c.media, id);
       }
 
-      c.media = ids.get(c.media);
-      c.id = uid();
+        c.media = ids.get(c.media);
+        c.id = uid();
+      }
     }
 
     p.id = uid();
@@ -1336,3 +1468,6 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
+
