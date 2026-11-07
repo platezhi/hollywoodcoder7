@@ -160,7 +160,7 @@ nav .icon{width:25px;height:25px}
 <div id="playhead" aria-label="Указатель времени"></div>
 </div>
 </div>
-<p class="timeline-help">Коснись ленты или шкалы для выбора времени. Раздвинь два пальца для масштаба. Потяни края клипа для изменения длины.</p>
+<p class="timeline-help">Коснись ленты или шкалы для выбора времени. На телефоне раздвинь два пальца для масштаба, на компьютере — Ctrl + колесо мыши или клавиши «+» и «−». Потяни края клипа для изменения длины.</p>
 </section>
 
 <div id="editbar" hidden>
@@ -598,6 +598,60 @@ document.addEventListener('DOMContentLoaded', () => {
     position = timelineTime(event);
     preview();
   };
+
+  function zoomAt(clientX, factor) {
+    const rect = viewport.getBoundingClientRect();
+    const center = Math.max(0, clientX - rect.left);
+    const anchor = (viewport.scrollLeft + center) / pixelsPerSecond;
+    const next = Math.max(20, Math.min(4000, pixelsPerSecond * factor));
+    if (Math.abs(next - pixelsPerSecond) < .01) return;
+    pixelsPerSecond = next;
+
+    $('#timeline-content').style.width = Math.max(
+      viewport.clientWidth - 2,
+      total() * pixelsPerSecond + 60
+    ) + 'px';
+
+    let start = 0;
+    project.clips.forEach((clip, index) => {
+      const block = $('#track').children[index];
+      if (!block) return;
+      block.style.left = start * pixelsPerSecond + 'px';
+      block.style.width = clip.duration * pixelsPerSecond + 'px';
+      start += clip.duration;
+    });
+
+    viewport.scrollLeft = Math.max(0, anchor * pixelsPerSecond - center);
+    renderRuler();
+    updatePlayhead();
+  }
+
+  viewport.addEventListener('wheel', event => {
+    if (!project) return;
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      zoomAt(event.clientX, event.deltaY < 0 ? 1.15 : 1 / 1.15);
+      return;
+    }
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      viewport.scrollLeft += event.deltaY;
+    }
+  }, {passive: false});
+
+  window.addEventListener('keydown', event => {
+    if (!project) return;
+    const tag = (event.target && event.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    const centerX = viewport.getBoundingClientRect().left + viewport.clientWidth / 2;
+    if (event.key === '+' || event.key === '=') {
+      event.preventDefault();
+      zoomAt(centerX, 1.15);
+    } else if (event.key === '-' || event.key === '_') {
+      event.preventDefault();
+      zoomAt(centerX, 1 / 1.15);
+    }
+  });
 
   window.addEventListener('resize', () => {
     if (project) renderTimeline();
