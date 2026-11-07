@@ -67,6 +67,14 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .track.active{box-shadow:inset 0 0 0 1px rgba(255,75,87,.6)}
 .track:empty::after{content:'пустой слой';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#5f6674;pointer-events:none}
 .overlaypv{z-index:3}
+#frame .lyr{position:absolute;display:flex;align-items:center;justify-content:center;touch-action:none}
+#frame .lyr img,#frame .lyr video{display:block;width:100%;object-fit:contain;pointer-events:none}
+#frame .lyr.base img,#frame .lyr.base video{height:100%}
+#frame .lyr.overlay img,#frame .lyr.overlay video{height:auto}
+#frame .lyr.base{pointer-events:none}
+#frame .lyr.sel{outline:2px solid #ff4b57;outline-offset:2px}
+#frame .lyr-resize{display:none;position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
+#frame .lyr.sel .lyr-resize{display:block}
 .headcontrols{display:flex;align-items:center;gap:8px}
 #add-over{height:32px;padding:0 12px;border-radius:999px;background:#262a33;border:1px solid #34363c;color:#cfd3dd;font-size:12px;line-height:1;display:inline-flex;align-items:center;white-space:nowrap}
 .filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
@@ -269,13 +277,36 @@ function timelineTime(event) {
     (event.clientX - bounds.left) / pixelsPerSecond));
 }
 
+function clipGap(clip) {
+  return Number.isFinite(clip.gap) && clip.gap > 0 ? clip.gap : 0;
+}
+
+function layoutLayerTrack(track, clips) {
+  let offset = 0;
+  for (let index = 0; index < clips.length; index++) {
+    const block = track.children[index];
+    if (!block) continue;
+    offset += clipGap(clips[index]);
+    block.style.left = offset * pixelsPerSecond + 'px';
+    block.style.width = clips[index].duration * pixelsPerSecond + 'px';
+    offset += clips[index].duration;
+  }
+  $('#timeline-content').style.width = Math.max(
+    $('#timeline-scroll').clientWidth - 2,
+    totalAll() * pixelsPerSecond + 60
+  ) + 'px';
+  renderRuler();
+  updatePlayhead();
+}
+
 function clipAtLayer(t) {
-  let start = 0;
+  let cursor = 0;
   for (const clip of currentClips()) {
-    if (t >= start && t < start + clip.duration) {
-      return {clip, start};
+    const from = cursor + clipGap(clip);
+    if (t >= from && t < from + clip.duration) {
+      return {clip, start: from};
     }
-    start += clip.duration;
+    cursor = from + clip.duration;
   }
   return null;
 }
@@ -433,11 +464,11 @@ function renderTrack(track, clips, layer) {
   };
 
   for (const clip of clips) {
-    const clipStart = start;
+    const clipStart = start + clipGap(clip);
     const isSelected = clip.id === selected && selectedLayer === layer;
     const block = document.createElement('div');
     block.className = 'filmclip' + (isSelected ? ' selected' : '');
-    block.style.left = start * pixelsPerSecond + 'px';
+    block.style.left = clipStart * pixelsPerSecond + 'px';
     block.style.width = clip.duration * pixelsPerSecond + 'px';
     block.tabIndex = 0;
     block.setAttribute('role', 'button');
@@ -483,6 +514,39 @@ function renderTrack(track, clips, layer) {
       }
     };
 
+    block.onpointerdown = event => {
+      if (event.target.closest('.trim-handle')) return;
+      if (!event.isPrimary) return;
+      const startX = event.clientX;
+      const baseGap = clipGap(clip);
+      const before = structuredClone(project);
+      let moved = false;
+
+      const move = ev => {
+        const next = Math.max(0, baseGap + (ev.clientX - startX) / pixelsPerSecond);
+        if (Math.abs(next - clipGap(clip)) < .001) return;
+        moved = true;
+        clip.gap = next;
+        layoutLayerTrack(track, clips);
+        preview();
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        if (moved) {
+          suppressTimelineClickUntil = Date.now() + 250;
+          history.push(before);
+          if (history.length > 30) history.shift();
+          save();
+          render();
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    };
+
     if (isSelected) {
       for (const edge of ['left', 'right']) {
         const handle = document.createElement('button');
@@ -524,6 +588,7 @@ function renderTrack(track, clips, layer) {
           for (let index = 0; index < clips.length; index++) {
             const child = track.children[index];
             if (!child) continue;
+            offset += clipGap(clips[index]);
             child.style.left = offset * pixelsPerSecond + 'px';
             offset += clips[index].duration;
           }
@@ -562,7 +627,7 @@ function renderTrack(track, clips, layer) {
     }
 
     track.append(block);
-    start += clip.duration;
+    start = clipStart + clip.duration;
   }
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -614,6 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clips.forEach((clip, index) => {
         const block = track.children[index];
         if (!block) return;
+        start += clipGap(clip);
         block.style.left = start * pixelsPerSecond + 'px';
         block.style.width = clip.duration * pixelsPerSecond + 'px';
         start += clip.duration;
@@ -678,6 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clips.forEach((clip, index) => {
         const block = track.children[index];
         if (!block) return;
+        start += clipGap(clip);
         block.style.left = start * pixelsPerSecond + 'px';
         block.style.width = clip.duration * pixelsPerSecond + 'px';
         start += clip.duration;
@@ -770,7 +837,7 @@ function read(store, key) {
 }
 
 function layerTotal(clips) {
-  return clips.reduce((n, c) => n + c.duration, 0);
+  return clips.reduce((n, c) => n + clipGap(c) + c.duration, 0);
 }
 
 function total() {
@@ -782,10 +849,11 @@ function totalAll() {
 }
 
 function clipAt(layerIndex, t) {
-  let start = 0;
+  let cursor = 0;
   for (const clip of layerAtKey(layerIndex)) {
-    if (t >= start && t < start + clip.duration) return {clip, start};
-    start += clip.duration;
+    const from = cursor + clipGap(clip);
+    if (t >= from && t < from + clip.duration) return {clip, start: from};
+    cursor = from + clip.duration;
   }
   return null;
 }
@@ -844,24 +912,113 @@ function ensureLayerViews(count) {
   const frame = $('#frame');
   for (let i = 0; i < count; i++) {
     if (layerViews.has(i)) continue;
+    const wrap = document.createElement('div');
+    wrap.className = 'lyr ' + (i === 0 ? 'base' : 'overlay');
     const img = document.createElement('img');
-    img.className = 'overlaypv';
     img.alt = '';
     img.hidden = true;
     const video = document.createElement('video');
-    video.className = 'overlaypv';
     video.playsInline = true;
     video.muted = true;
     video.hidden = true;
-    frame.append(img, video);
-    layerViews.set(i, {img, video});
+    wrap.append(img, video);
+
+    if (i > 0) {
+      const handle = document.createElement('span');
+      handle.className = 'lyr-resize';
+      wrap.append(handle);
+      bindOverlayDrag(wrap, i);
+      bindOverlayResize(handle, i);
+    }
+
+    frame.append(wrap);
+    layerViews.set(i, {wrap, img, video});
   }
   for (const [index, view] of [...layerViews]) {
     if (index < count) continue;
-    view.img.remove();
-    view.video.remove();
+    view.wrap.remove();
     layerViews.delete(index);
   }
+}
+
+function overlaySelected(index, clip) {
+  return index > 0 && selectedLayer === index && clip && selected === clip.id;
+}
+
+function bindOverlayDrag(wrap, index) {
+  wrap.addEventListener('pointerdown', event => {
+    const item = clipAt(index, position);
+    if (!item || !overlaySelected(index, item.clip)) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = $('#frame').getBoundingClientRect();
+    const clip = item.clip;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const bx = Number.isFinite(clip.x) ? clip.x : .5;
+    const by = Number.isFinite(clip.y) ? clip.y : .5;
+    const before = structuredClone(project);
+    let moved = false;
+
+    const move = ev => {
+      moved = true;
+      clip.x = bx + (ev.clientX - startX) / rect.width;
+      clip.y = by + (ev.clientY - startY) / rect.height;
+      preview();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (moved) {
+        history.push(before);
+        if (history.length > 30) history.shift();
+        save();
+      }
+      render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+}
+
+function bindOverlayResize(handle, index) {
+  handle.addEventListener('pointerdown', event => {
+    const item = clipAt(index, position);
+    if (!item || !overlaySelected(index, item.clip)) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = $('#frame').getBoundingClientRect();
+    const clip = item.clip;
+    const startX = event.clientX;
+    const bw = Number.isFinite(clip.w) ? clip.w : .5;
+    const before = structuredClone(project);
+    let moved = false;
+
+    const move = ev => {
+      moved = true;
+      const next = bw + ((ev.clientX - startX) / rect.width) * 2;
+      clip.w = Math.max(.08, Math.min(2.5, next));
+      preview();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (moved) {
+        history.push(before);
+        if (history.length > 30) history.shift();
+        save();
+      }
+      render();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
 }
 
 function preview() {
@@ -878,6 +1035,29 @@ function preview() {
     if (!view) return;
     const item = clipAt(index, position);
     const isVideo = !!item && item.clip.type === 'video';
+    const wrap = view.wrap;
+
+    wrap.style.zIndex = String(index + 2);
+    wrap.hidden = !item;
+    wrap.classList.toggle('sel', !!item && overlaySelected(index, item.clip));
+
+    if (index === 0) {
+      wrap.style.left = '0';
+      wrap.style.top = '0';
+      wrap.style.width = '100%';
+      wrap.style.height = '100%';
+      wrap.style.transform = 'none';
+    } else {
+      const clip = item ? item.clip : {};
+      const w = Number.isFinite(clip.w) ? clip.w : .5;
+      const x = Number.isFinite(clip.x) ? clip.x : .5;
+      const y = Number.isFinite(clip.y) ? clip.y : .5;
+      wrap.style.width = (w * 100) + '%';
+      wrap.style.height = 'auto';
+      wrap.style.left = (x * 100) + '%';
+      wrap.style.top = (y * 100) + '%';
+      wrap.style.transform = 'translate(-50%,-50%)';
+    }
 
     view.img.hidden = !item || isVideo;
     view.video.hidden = !item || !isVideo;
@@ -1031,6 +1211,11 @@ $('#files').onchange = async e => {
         };
         const index = Math.max(0, Math.min(importLayer, layersOf().length - 1));
         const list = layerAtKey(index);
+        if (index > 0) {
+          clip.x = .5;
+          clip.y = .5;
+          clip.w = .5;
+        }
         list.push(clip);
         selected = clip.id;
         selectedLayer = index;
@@ -1054,8 +1239,9 @@ $('#ratio').onchange = e => change(() => project.ratio = e.target.value);
 $('#remove').onclick = () => {
   stop();
   change(() => {
-    const key = clipsKey();
-    project[key] = project[key].filter(c => c.id !== selected);
+    const list = currentClips();
+    const i = list.findIndex(c => c.id === selected);
+    if (i >= 0) list.splice(i, 1);
     selected = null;
   });
 };
@@ -1468,6 +1654,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
