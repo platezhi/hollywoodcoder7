@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101114">
+<title>HollywoodCoder</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101114;color:#f5f5f5;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer;border:1px solid #34363c;background:#23252b;color:inherit;border-radius:12px;padding:12px 16px}
+button:disabled{opacity:.35;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid #ff525c;outline-offset:3px}
+header{height:78px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid #282a30;gap:12px}
+header b{font-size:23px;letter-spacing:-1px}
+.red{color:#ff525c}
+main{max-width:1100px;margin:auto;padding:20px 26px}
+.projectline{display:flex;justify-content:space-between;gap:20px}
+.projectline input{background:transparent;border:0;color:#ddd;font-size:17px;min-width:0}
+select{background:#24262c;color:#eee;border:0;padding:10px;border-radius:8px}
+#stage{height:43vh;min-height:270px;display:flex;align-items:center;justify-content:center;margin:18px 0;background:#090a0c;border:1px solid #22242a;border-radius:16px;overflow:hidden}
+#frame{height:100%;max-width:100%;aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;position:relative;background:#050506}
+#frame video,#frame img{width:100%;height:100%;object-fit:contain}
+#empty{text-align:center;color:#a7a9b1;padding:14px;position:absolute;width:100%}
+#empty h1{font-size:20px;color:#ddd}
+#empty p{line-height:1.6;font-size:13px}
+.film{font-size:52px;color:#ff525c}
+.transport{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#a8abb5}
+.transport button{font-size:21px;min-width:64px}
+#saved{max-width:150px;text-align:right}
+#seek{width:100%;accent-color:#ff525c;margin:12px 0}
+.timeline{border:1px solid #303239;border-radius:14px;padding:14px;background:#191b20}
+.timelinehead{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:2px;color:#a5a8b1}
+#add{border:0;background:#ff4b57;border-radius:50%;font-size:35px;width:54px;height:54px;padding:0;color:white}
+#editbar{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0;min-height:65px}
+#editbar[hidden]{display:none}
+#editbar input{width:65px;background:#24262b;border:1px solid #444;color:white;padding:7px;border-radius:5px}
+#editbar label{align-self:center;font-size:12px}
+nav{display:flex;justify-content:center;gap:clamp(8px,3vw,24px);margin-top:18px}
+nav button{background:transparent;border:0;color:#b3b5c0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:64px;padding:10px 8px;font-size:12px;line-height:1.2}
+.footnote{text-align:center;color:#666b79;font-size:10px;line-height:1.8;margin-top:24px}
+dialog{width:min(94vw,580px);max-height:85vh;background:#1c1e24;color:#eee;border:1px solid #40434d;border-radius:20px;padding:22px}
+dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
+.dialoghead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.dialoghead h2{font-size:20px;margin:0}
+#content{display:flex;flex-direction:column;gap:14px}
+#content p{line-height:1.6;color:#b4b8c4}
+#content input,#content textarea{width:100%;background:#111318;color:#fff;border:1px solid #424650;padding:12px;border-radius:9px}
+#content textarea{min-height:110px;resize:vertical}
+.primary{background:#ff4b57;border:0;color:white}
+.assetgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.assetcard{padding:0;overflow:hidden;text-align:left}
+.assetcard img{width:100%;height:140px;object-fit:cover;display:block}
+.assetcard span{display:block;padding:10px}
+.previewasset{width:100%;height:180px;object-fit:contain;border-radius:9px}
+.projectrow{display:flex;gap:8px}
+.projectrow button:first-child{flex:1;text-align:left}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;padding:16px 22px;border:1px solid #505461;border-radius:14px;background:#30333b;color:white;z-index:20;box-shadow:0 5px 30px #0008}
+#timeline-scroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding:0 14px 12px 0;touch-action:pan-x}
+#timeline-content{position:relative;min-height:117.5px}
+#ruler{height:42px;position:relative;cursor:crosshair;touch-action:pan-x}
+.tick{position:absolute;top:0;height:36px;border-left:1px solid #555b67;padding-left:5px;font-size:11px;color:#c8cbd2;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
+.tick.minor{top:25px;height:11px;padding:0;border-color:#515663}
+#track{display:block;position:relative;overflow:visible;padding:0;height:52.5px;min-height:52.5px;background:#111318;border-radius:6px}
+.filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
+.filmclip.selected{border:3px solid white;z-index:2}
+.clip-name{position:absolute;left:17px;top:3px;background:#ff4b57;color:#fff;font-size:11px;font-weight:600;border-radius:6px;padding:4px 6px;white-space:nowrap;max-width:calc(100% - 34px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.clip-duration{position:absolute;right:17px;bottom:2px;padding:3px 5px;border-radius:4px;background:#000b;font-size:11px;pointer-events:none}
+.trim-handle{position:absolute;top:0;bottom:0;width:17px;border:0;background:#fff;color:#15171b;font-size:23px;padding:0;border-radius:0;touch-action:none;cursor:ew-resize;display:flex;align-items:center;justify-content:center}
+.trim-handle.left{left:0}
+.trim-handle.right{right:0}
+#playhead{position:absolute;top:28px;bottom:0;width:2px;background:#ff4b57;z-index:4;pointer-events:none}
+#playhead:before{content:'';position:absolute;top:0;left:-5px;width:12px;height:10px;background:#ff4b57;clip-path:polygon(0 0,100% 0,50% 100%)}
+.timeline-help{font-size:11px;color:#969ca8;line-height:1.5;margin:6px 0}
+#split{background:#ff4b57;color:white}
+.icon{display:block;width:24px;height:24px;flex:none;pointer-events:none}
+header button,.transport button,.dialoghead button,#editbar button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+#add{display:grid;place-items:center;padding:0;line-height:1}
+#add .icon{width:30px;height:30px;stroke-width:2.3}
+#play{width:56px;height:44px;min-width:56px;padding:0}
+#play .icon{width:24px;height:24px}
+nav .icon{width:25px;height:25px}
+#editbar .icon{width:19px;height:19px}
+.dialoghead button{width:44px;height:44px;padding:0}
+.film{display:flex;justify-content:center}
+.film .icon{width:48px;height:48px;stroke-width:1.3}
+.trim-handle .icon{width:16px;height:20px}
+.transport output{font-variant-numeric:tabular-nums}
+@media(max-width:600px){
+ header{padding:0 12px;height:65px}
+ header b{font-size:19px}
+ header button span{display:none}
+ header button{padding:9px}
+ main{padding:15px 13px}
+ #stage{height:43vh}
+ .transport{font-size:10px}
+ #saved{max-width:110px}
+}
+</style>
+</head>
+<body>
+<header>
+<button id="projects" aria-label="Проекты">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+<span>Проекты</span>
+</button>
+<b>Hollywood<span class="red">Coder</span></b>
+<button id="savecopy" aria-label="Скачать копию проекта">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>
+<span>Копия</span>
+</button>
+</header>
+
+<main>
+<div class="projectline">
+<input id="title" aria-label="Название проекта" value="Новый фильм">
+<select id="ratio" aria-label="Формат кадра">
+<option>9:16</option>
+<option>16:9</option>
+<option>1:1</option>
+<option>4:3</option>
+<option>3:4</option>
+</select>
+</div>
+
+<section id="stage">
+<div id="frame">
+<video id="video" playsinline controls hidden></video>
+<img id="photo" hidden alt="Предпросмотр">
+<div id="empty">
+<div class="film">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"/></svg>
+</div>
+<h1>Твоя следующая история</h1>
+<p>Добавь видео, фото или ассет<br>через красный плюс</p>
+</div>
+</div>
+</section>
+
+<div class="transport">
+<output id="clock">00:00 / 00:00</output>
+<button id="play" aria-label="Воспроизвести">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/></svg>
+</button>
+<span id="saved">Сохранено на устройстве</span>
+</div>
+<input id="seek" type="range" min="0" max="0" step=".001" value="0" aria-label="Позиция воспроизведения">
+
+<section class="timeline">
+<div class="timelinehead">
+<span>МОНТАЖ · <span id="count">0</span></span>
+<button id="add" aria-label="Добавить медиа">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+<div id="timeline-scroll">
+<div id="timeline-content">
+<div id="ruler"></div>
+<div id="track" aria-label="Видеодорожка"></div>
+<div id="playhead" aria-label="Указатель времени"></div>
+</div>
+</div>
+<p class="timeline-help">Коснись ленты или шкалы для выбора времени. Раздвинь два пальца для масштаба. Потяни края клипа для изменения длины.</p>
+</section>
+
+<div id="editbar" hidden>
+<button id="split">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><rect x="3" y="6" width="6" height="12" rx="1.5"/><rect x="15" y="6" width="6" height="12" rx="1.5"/></svg>
+<span>Разрезать</span>
+</button>
+<button id="duplicate">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5V4H4v12h1"/></svg>
+<span>Дубль</span>
+</button>
+<button id="remove">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>
+<span>Удалить</span>
+</button>
+<label>Длительность <input id="duration" type="number" min=".1" step=".1"> сек</label>
+</div>
+
+<nav>
+<button id="refresh">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg>
+<span>Обновить</span>
+</button>
+<button id="assets">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="9" r="3"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/></svg>
+<span>Ассеты</span>
+</button>
+<button id="undo">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5-5 5 5 5M4 10h10a6 6 0 0 1 6 6v3"/></svg>
+<span>Отмена</span>
+</button>
+<button id="generation">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 6.3L21 12l-6.3 2.7L12 21l-2.7-6.3L3 12l6.3-2.7Z"/></svg>
+<span>Veo</span>
+</button>
+</nav>
+
+<p class="footnote">HOLLYWOODCODER · СБОРКА 03.11 · 6<br>Проекты хранятся в этом браузере. Скачивай копии для переноса.</p>
+</main>
+
+<dialog id="modal">
+<div class="dialoghead">
+<h2 id="modal-title"></h2>
+<button id="close" aria-label="Закрыть">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+</button>
+</div>
+<div id="content"></div>
+</dialog>
+
+<input id="files" type="file" accept="image/*,video/*,.mov,.mp4,.m4v,.webm" multiple hidden>
+<input id="assetfile" type="file" accept="image/*" hidden>
+<input id="restorefile" type="file" accept=".json,application/json" hidden>
+<div id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+
+const iconMarkup = {
+  play: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/></svg>',
+  pause: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke-width="3.5"/></svg>',
+  left: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg>',
+  right: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg>'
+};
+
+function setPlayButton(playing) {
+  const button = document.querySelector('#play');
+  button.innerHTML = iconMarkup[playing ? 'pause' : 'play'];
+  button.setAttribute('aria-label', playing ? 'Пауза' : 'Воспроизвести');
+}
+
+let pixelsPerSecond = 80;
+let trimGesture = null;
+let pinchGesture = null;
+let suppressTimelineClickUntil = 0;
+const thumbnails = new Map();
+
+function trimValues(clip, edge, delta) {
+  const minimum = 0.1;
+  if (edge === 'right') {
+    const maximum = clip.type === 'video'
+      ? clip.sourceDuration - clip.start : Infinity;
+    return {
+      start: clip.start,
+      duration: Math.max(minimum, Math.min(maximum, clip.duration + delta))
+    };
+  }
+  const earliest = clip.type === 'video' ? -clip.start : -Infinity;
+  const shift = Math.max(earliest, Math.min(clip.duration - minimum, delta));
+  return {
+    start: clip.type === 'video' ? clip.start + shift : 0,
+    duration: clip.duration - shift
+  };
+}
+
+function timelineTime(event) {
+  const bounds = $('#timeline-content').getBoundingClientRect();
+  return Math.max(0, Math.min(total(),
+    (event.clientX - bounds.left) / pixelsPerSecond));
+}
+
+function updatePlayhead() {
+  $('#playhead').style.left = position * pixelsPerSecond + 'px';
+  const item = active();
+  const offset = item ? position - item.start : 0;
+  $('#split').disabled =
+    !item || offset < .1 || item.clip.duration - offset < .1;
+
+  if (playing) {
+    const scroll = $('#timeline-scroll');
+    const x = position * pixelsPerSecond;
+    if (x > scroll.scrollLeft + scroll.clientWidth - 25 ||
+        x < scroll.scrollLeft) {
+      scroll.scrollLeft = Math.max(0, x - scroll.clientWidth / 2);
+    }
+  }
+}
+
+async function thumbnail(clip) {
+  const url = urls.get(clip.media);
+  if (clip.type === 'image') return url;
+  if (thumbnails.has(clip.media)) return thumbnails.get(clip.media);
+
+  const pending = new Promise(resolve => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+
+    const finish = value => {
+      clearTimeout(timer);
+      video.onloadeddata = video.onerror = null;
+      video.removeAttribute('src');
+      video.load();
+      resolve(value);
+    };
+
+    const timer = setTimeout(() => finish(null), 5000);
+    video.onloadeddata = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 90;
+        canvas.getContext('2d').drawImage(video, 0, 0, 160, 90);
+        finish(canvas.toDataURL('image/jpeg', .65));
+      } catch (_) {
+        finish(null);
+      }
+    };
+    video.onerror = () => finish(null);
+    video.src = url;
+  });
+
+  thumbnails.set(clip.media, pending);
+  return pending;
+}
+
+function rulerStep(scale) {
+  return [0.02,0.05,0.1,0.2,0.5,1,2,5,10,30,60]
+    .find(step => step * scale >= 72) || 60;
+}
+
+function preciseTime(seconds) {
+  const ms = Math.round(Math.max(0, seconds) * 1000);
+  const minutes = Math.floor(ms / 60000).toString().padStart(2, '0');
+  const secs = Math.floor(ms / 1000 % 60).toString().padStart(2, '0');
+  return minutes + ':' + secs + '.' +
+    (ms % 1000).toString().padStart(3, '0');
+}
+
+function renderRuler() {
+  const viewport = $('#timeline-scroll');
+  const ruler = $('#ruler');
+  const step = rulerStep(pixelsPerSecond);
+  const minor = step / 5;
+  const start = Math.max(0, viewport.scrollLeft - 100) / pixelsPerSecond;
+  const end = Math.min(
+    parseFloat($('#timeline-content').style.width),
+    viewport.scrollLeft + viewport.clientWidth + 100
+  ) / pixelsPerSecond;
+  const fragment = document.createDocumentFragment();
+
+  for (let index = Math.floor(start / minor);
+       index <= Math.ceil(end / minor); index++) {
+    const time = index * minor;
+    const major = index % 5 === 0;
+    const mark = document.createElement('span');
+    mark.className = major ? 'tick' : 'tick minor';
+    mark.style.left = time * pixelsPerSecond + 'px';
+
+    if (major) {
+      const label = preciseTime(time);
+      mark.textContent = step >= 1
+        ? label.slice(0, 5)
+        : label.slice(0, step >= .1 ? 7 : 8);
+    }
+    fragment.append(mark);
+  }
+  ruler.replaceChildren(fragment);
+}
+
+function renderTimeline() {
+  const width = Math.max(
+    $('#timeline-scroll').clientWidth - 2,
+    total() * pixelsPerSecond + 60
+  );
+  $('#timeline-content').style.width = width + 'px';
+  renderRuler();
+
+  const track = $('#track');
+  track.replaceChildren();
+  let start = 0;
+
+  for (const clip of project.clips) {
+    const clipStart = start;
+    const block = document.createElement('div');
+    block.className = 'filmclip' +
+      (clip.id === selected ? ' selected' : '');
+    block.style.left = start * pixelsPerSecond + 'px';
+    block.style.width = clip.duration * pixelsPerSecond + 'px';
+    block.tabIndex = 0;
+    block.setAttribute('role', 'button');
+    block.setAttribute('aria-label',
+      clip.name + ', ' + clip.duration.toFixed(1) + ' секунд');
+
+    const name = document.createElement('span');
+    name.className = 'clip-name';
+    name.textContent = clip.name;
+
+    const duration = document.createElement('span');
+    duration.className = 'clip-duration';
+    duration.textContent = clip.duration.toFixed(1) + 'с';
+    block.append(name, duration);
+
+    thumbnail(clip).then(url => {
+      if (url && block.isConnected) {
+        block.style.backgroundImage = 'url("' + url + '")';
+      }
+    });
+
+    block.onclick = event => {
+      if (trimGesture || pinchGesture ||
+          Date.now() < suppressTimelineClickUntil ||
+          event.target.closest('.trim-handle')) return;
+      stop();
+      selected = clip.id;
+      position = Math.max(clipStart, Math.min(
+        clipStart + clip.duration - .001,
+        timelineTime(event)
+      ));
+      render();
+    };
+
+    block.onkeydown = event => {
+      if (event.key === 'Enter') {
+        stop();
+        selected = clip.id;
+        position = clipStart;
+        render();
+      }
+    };
+
+    if (clip.id === selected) {
+      for (const edge of ['left', 'right']) {
+        const handle = document.createElement('button');
+        handle.className = 'trim-handle ' + edge;
+        handle.innerHTML = iconMarkup[edge];
+        handle.setAttribute('aria-label',
+          edge === 'left' ? 'Начало клипа' : 'Конец клипа');
+
+        handle.onpointerdown = event => {
+          if (pinchGesture || !event.isPrimary) return;
+          event.preventDefault();
+          event.stopPropagation();
+          stop();
+          trimGesture = {
+            id: clip.id,
+            edge,
+            x: event.clientX,
+            clip: {...clip},
+            before: structuredClone(project)
+          };
+          handle.setPointerCapture(event.pointerId);
+        };
+
+        handle.onpointermove = event => {
+          if (!trimGesture) return;
+          const values = trimValues(
+            trimGesture.clip,
+            edge,
+            (event.clientX - trimGesture.x) / pixelsPerSecond
+          );
+          Object.assign(clip, values);
+          block.style.width = clip.duration * pixelsPerSecond + 'px';
+          duration.textContent = clip.duration.toFixed(1) + 'с';
+          $('#duration').value = clip.duration.toFixed(2);
+
+          let offset = 0;
+          for (const item of project.clips) {
+            const child = track.children[project.clips.indexOf(item)];
+            child.style.left = offset * pixelsPerSecond + 'px';
+            offset += item.duration;
+          }
+
+          $('#timeline-content').style.width = Math.max(
+            $('#timeline-scroll').clientWidth,
+            total() * pixelsPerSecond + 60
+          ) + 'px';
+          position = Math.min(position, total());
+          preview();
+        };
+
+        handle.onpointerup = event => {
+          if (!trimGesture) return;
+          event.stopPropagation();
+          const before = trimGesture.before;
+          const original = trimGesture.clip;
+          trimGesture = null;
+          if (clip.duration !== original.duration ||
+              clip.start !== original.start) {
+            history.push(before);
+            if (history.length > 30) history.shift();
+            save();
+          }
+          render();
+        };
+
+        handle.onpointercancel = () => {
+          if (!trimGesture) return;
+          project = trimGesture.before;
+          trimGesture = null;
+          render();
+        };
+        block.append(handle);
+      }
+    }
+
+    track.append(block);
+    start += clip.duration;
+  }
+  updatePlayhead();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const viewport = $('#timeline-scroll');
+  const distance = touches => Math.hypot(
+    touches[0].clientX - touches[1].clientX,
+    touches[0].clientY - touches[1].clientY
+  );
+  const midpoint = touches =>
+    (touches[0].clientX + touches[1].clientX) / 2;
+
+  viewport.addEventListener('touchstart', event => {
+    if (event.touches.length !== 2 || !project) return;
+    event.preventDefault();
+    stop();
+
+    if (trimGesture) {
+      const clip = project.clips.find(c => c.id === trimGesture.id);
+      if (clip) Object.assign(clip, trimGesture.clip);
+      trimGesture = null;
+    }
+
+    const center = midpoint(event.touches) -
+      viewport.getBoundingClientRect().left;
+    pinchGesture = {
+      distance: Math.max(1, distance(event.touches)),
+      scale: pixelsPerSecond,
+      time: (viewport.scrollLeft + center) / pixelsPerSecond
+    };
+    suppressTimelineClickUntil = Infinity;
+  }, {passive: false, capture: true});
+
+  viewport.addEventListener('touchmove', event => {
+    if (!pinchGesture || event.touches.length !== 2) return;
+    event.preventDefault();
+    pixelsPerSecond = Math.max(20, Math.min(4000,
+      pinchGesture.scale *
+      distance(event.touches) / pinchGesture.distance));
+
+    $('#timeline-content').style.width = Math.max(
+      viewport.clientWidth - 2,
+      total() * pixelsPerSecond + 60
+    ) + 'px';
+
+    let start = 0;
+    project.clips.forEach((clip, index) => {
+      const block = $('#track').children[index];
+      block.style.left = start * pixelsPerSecond + 'px';
+      block.style.width = clip.duration * pixelsPerSecond + 'px';
+      start += clip.duration;
+    });
+
+    const center = midpoint(event.touches) -
+      viewport.getBoundingClientRect().left;
+    viewport.scrollLeft = Math.max(
+      0, pinchGesture.time * pixelsPerSecond - center
+    );
+    renderRuler();
+    updatePlayhead();
+  }, {passive: false});
+
+  function finishPinch(event) {
+    if (!pinchGesture || event.touches.length >= 2) return;
+    pinchGesture = null;
+    suppressTimelineClickUntil = Date.now() + 400;
+    render();
+  }
+
+  viewport.addEventListener('scroll', () => {
+    if (project) renderRuler();
+  }, {passive: true});
+  viewport.addEventListener('touchend', finishPinch);
+  viewport.addEventListener('touchcancel', finishPinch);
+  viewport.addEventListener('click', event => {
+    if (Date.now() < suppressTimelineClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+
+  $('#ruler').onclick = event => {
+    if (!project || pinchGesture ||
+        Date.now() < suppressTimelineClickUntil) return;
+    stop();
+    position = timelineTime(event);
+    const item = active();
+    selected = item ? item.clip.id : null;
+    render();
+  };
+
+  $('#track').onclick = event => {
+    if (event.target !== $('#track') || !project) return;
+    stop();
+    position = timelineTime(event);
+    preview();
+  };
+
+  window.addEventListener('resize', () => {
+    if (project) renderTimeline();
+  });
+});
+
+const $ = s => document.querySelector(s);
+const uid = () => Array.from(
+  crypto.getRandomValues(new Uint8Array(16)),
+  n => n.toString(16).padStart(2, '0')
+).join('');
+
+let db;
+let project;
+let projects = [];
+let assets = [];
+let selected = null;
+let position = 0;
+let playing = false;
+let last = 0;
+let history = [];
+let saveQueue = Promise.resolve();
+const urls = new Map();
+
+function toast(text) {
+  $('#toast').textContent = text;
+  $('#toast').hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => $('#toast').hidden = true, 4500);
+}
+
+function request(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function write(store, key, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+function read(store, key) {
+  return request(db.transaction(store).objectStore(store).get(key));
+}
+
+function total() {
+  return project.clips.reduce((n, c) => n + c.duration, 0);
+}
+
+function fmt(n) {
+  return Math.floor(n / 60).toString().padStart(2, '0') + ':' +
+    Math.floor(n % 60).toString().padStart(2, '0');
+}
+
+function save() {
+  const snapshot = structuredClone(project);
+  $('#saved').textContent = 'Сохранение…';
+  saveQueue = saveQueue.catch(() => {})
+    .then(() => write('projects', snapshot.id, snapshot));
+  saveQueue.then(
+    () => $('#saved').textContent = 'Сохранено на устройстве',
+    () => {
+      $('#saved').textContent = 'Не удалось сохранить';
+      toast('Недостаточно памяти для сохранения');
+    }
+  );
+  return saveQueue;
+}
+
+function change(fn) {
+  history.push(structuredClone(project));
+  if (history.length > 30) history.shift();
+  fn();
+  save();
+  render();
+}
+
+function stop() {
+  playing = false;
+  $('#video').pause();
+  setPlayButton(false);
+}
+
+function active() {
+  let start = 0;
+  for (const clip of project.clips) {
+    if (position < start + clip.duration ||
+        clip === project.clips.at(-1)) {
+      return {clip, start};
+    }
+    start += clip.duration;
+  }
+  return null;
+}
+
+function render() {
+  position = Math.min(position, total());
+  $('#title').value = project.name;
+  $('#ratio').value = project.ratio;
+  $('#frame').style.aspectRatio = project.ratio.replace(':', '/');
+  $('#count').textContent = project.clips.length;
+  $('#seek').max = total();
+  renderTimeline();
+
+  const c = project.clips.find(c => c.id === selected);
+  $('#editbar').hidden = !c;
+  if (c) $('#duration').value = c.duration;
+  $('#undo').disabled = !history.length;
+  preview();
+}
+
+function preview() {
+  const item = active();
+  const v = $('#video');
+  const img = $('#photo');
+
+  $('#clock').textContent =
+    preciseTime(position) + ' / ' + preciseTime(total());
+  $('#seek').value = position;
+  updatePlayhead();
+  $('#empty').hidden = !!item;
+  v.hidden = !item || item.clip.type !== 'video';
+  img.hidden = !item || item.clip.type === 'video';
+
+  if (!item) {
+    v.pause();
+    return;
+  }
+
+  const c = item.clip;
+  const url = urls.get(c.media);
+  if (!url) {
+    stop();
+    toast('Медиа отсутствует. Импортируй копию проекта.');
+    return;
+  }
+
+  if (c.type === 'video') {
+    if (v.dataset.media !== c.media) {
+      v.src = url;
+      v.dataset.media = c.media;
+    }
+    const target = c.start + Math.max(0, position - item.start);
+    if (Math.abs(v.currentTime - target) > .3) {
+      v.currentTime = target;
+    }
+    if (playing && v.paused) {
+      v.play().catch(() => {
+        stop();
+        toast('Нажми воспроизведение ещё раз');
+      });
+    }
+  } else {
+    v.pause();
+    img.src = url;
+  }
+}
+
+function tick(ts) {
+  if (!playing) return;
+  position += (ts - last) / 1000;
+  last = ts;
+  if (position >= total()) {
+    position = total();
+    stop();
+  }
+  preview();
+  if (playing) requestAnimationFrame(tick);
+}
+
+$('#play').onclick = () => {
+  if (playing) return stop();
+  if (!project.clips.length) return toast('Добавь медиа через +');
+  if (position >= total()) position = 0;
+  playing = true;
+  last = performance.now();
+  setPlayButton(true);
+  preview();
+  requestAnimationFrame(tick);
+};
+
+$('#seek').oninput = e => {
+  stop();
+  position = +e.target.value;
+  preview();
+};
+
+function modal(title) {
+  stop();
+  $('#modal-title').textContent = title;
+  $('#content').replaceChildren();
+  if (!$('#modal').open) $('#modal').showModal();
+  return $('#content');
+}
+
+function button(parent, text, fn, primary = false) {
+  const b = document.createElement('button');
+  b.textContent = text;
+  b.className = primary ? 'primary' : '';
+  b.onclick = fn;
+  parent.append(b);
+  return b;
+}
+
+$('#close').onclick = () => $('#modal').close();
+
+$('#add').onclick = () => {
+  const p = modal('Добавить в монтаж');
+  button(p, 'Видео или фото из галереи', () => $('#files').click(), true);
+  button(p, 'Ассет из библиотеки', () => showAssets(true));
+};
+
+async function mediaUrl(id) {
+  if (!urls.has(id)) {
+    const blob = await read('media', id);
+    if (blob) urls.set(id, URL.createObjectURL(blob));
+  }
+  return urls.get(id);
+}
+
+function mediaInfo(file, url) {
+  return new Promise((resolve, reject) => {
+    const video = file.type.startsWith('video/') ||
+      /\.(mov|mp4|m4v|webm|3gp)$/i.test(file.name);
+    const el = document.createElement(video ? 'video' : 'img');
+    const timer = setTimeout(
+      () => reject(new Error('Не удалось прочитать файл за 30 секунд')),
+      30000
+    );
+
+    el.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error('Формат файла не поддерживается браузером'));
+    };
+
+    el[video ? 'onloadedmetadata' : 'onload'] = () => {
+      clearTimeout(timer);
+      if (video && (!Number.isFinite(el.duration) || el.duration <= 0)) {
+        return reject(new Error('Не удалось определить длительность'));
+      }
+      resolve({
+        type: video ? 'video' : 'image',
+        sourceDuration: video ? el.duration : null,
+        duration: video ? el.duration : 3
+      });
+    };
+
+    if (video) {
+      el.preload = 'metadata';
+      el.muted = true;
+      el.playsInline = true;
+    }
+    el.src = url;
+  });
+}
+
+$('#files').onchange = async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  const target = project;
+
+  for (const file of files) {
+    const media = uid();
+    const url = URL.createObjectURL(file);
+    try {
+      toast('Добавляю ' + file.name);
+      const info = await mediaInfo(file, url);
+      await write('media', media, file);
+      urls.set(media, url);
+      if (project !== target) {
+        throw new Error('Проект изменён, повтори импорт');
+      }
+      change(() => {
+        const clip = {
+          id: uid(), media, name: file.name, start: 0, ...info
+        };
+        project.clips.push(clip);
+        selected = clip.id;
+        position = total() - clip.duration;
+      });
+    } catch (err) {
+      if (!urls.has(media)) URL.revokeObjectURL(url);
+      toast(err.message);
+    }
+  }
+  $('#modal').close();
+};
+
+$('#title').onchange = e => {
+  change(() => project.name = e.target.value.trim() || 'Новый фильм');
+};
+
+$('#ratio').onchange = e => change(() => project.ratio = e.target.value);
+
+$('#remove').onclick = () => {
+  stop();
+  change(() => {
+    project.clips = project.clips.filter(c => c.id !== selected);
+    selected = null;
+  });
+};
+
+$('#duplicate').onclick = () => {
+  stop();
+  change(() => {
+    const i = project.clips.findIndex(c => c.id === selected);
+    const copy = {...project.clips[i], id: uid()};
+    project.clips.splice(i + 1, 0, copy);
+    selected = copy.id;
+  });
+};
+
+$('#split').onclick = () => {
+  const item = active();
+  if (!item) return;
+  const off = position - item.start;
+  const c = item.clip;
+
+  if (off < .1 || c.duration - off < .1) {
+    return toast('Перемести ползунок внутрь клипа');
+  }
+
+  stop();
+  change(() => {
+    const right = {
+      ...c,
+      id: uid(),
+      start: c.start + off,
+      duration: c.duration - off
+    };
+    c.duration = off;
+    project.clips.splice(project.clips.indexOf(c) + 1, 0, right);
+    selected = right.id;
+  });
+};
+
+$('#duration').onchange = e => {
+  const c = project.clips.find(x => x.id === selected);
+  const n = +e.target.value;
+  if (!c) return;
+
+  if (!Number.isFinite(n) || n < .1 ||
+      (c.type === 'video' && n > c.sourceDuration - c.start)) {
+    toast('Длительность выходит за границы клипа');
+    render();
+    return;
+  }
+
+  stop();
+  change(() => c.duration = n);
+};
+
+$('#undo').onclick = () => {
+  if (!history.length) return;
+  stop();
+  project = history.pop();
+  selected = null;
+  save();
+  render();
+};
+
+function assetForm(asset) {
+  const draft = asset ? {...asset} : {
+    id: uid(), name: '#', prompt: '', media: null
+  };
+  const p = modal(asset ? 'Редактирование ассета' : 'Новый ассет');
+  const img = document.createElement('img');
+  img.className = 'previewasset';
+  img.hidden = !draft.media;
+  if (draft.media) img.src = urls.get(draft.media);
+  p.append(img);
+
+  button(p, 'Выбрать фото', () => {
+    $('#assetfile').onchange = async e => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+
+      const id = uid();
+      const url = URL.createObjectURL(f);
+      try {
+        const info = await mediaInfo(f, url);
+        if (info.type !== 'image') throw new Error('Выбери изображение');
+        await write('media', id, f);
+        urls.set(id, url);
+        draft.media = id;
+        img.src = url;
+        img.hidden = false;
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        toast(err.message);
+      }
+    };
+    $('#assetfile').click();
+  });
+
+  const name = document.createElement('input');
+  name.placeholder = '#персонаж';
+  name.value = draft.name;
+  name.setAttribute('aria-label', 'Тег ассета');
+
+  const prompt = document.createElement('textarea');
+  prompt.placeholder = 'Описание персонажа или объекта';
+  prompt.value = draft.prompt;
+  p.append(name, prompt);
+
+  button(p, 'Сохранить ассет', async () => {
+    const tag = name.value.trim().replace(/^#+/, '');
+    if (!tag || !draft.media) return toast('Добавь фото и тег');
+
+    if (assets.some(a =>
+      a.id !== draft.id &&
+      a.name.toLowerCase() === '#' + tag.toLowerCase())) {
+      return toast('Такой тег уже есть');
+    }
+
+    Object.assign(draft, {
+      name: '#' + tag,
+      prompt: prompt.value.trim()
+    });
+
+    try {
+      await write('assets', draft.id, draft);
+      assets = assets.filter(a => a.id !== draft.id);
+      assets.push(draft);
+      showAssets(false);
+      toast('Ассет сохранён');
+    } catch (_) {
+      toast('Не удалось сохранить ассет');
+    }
+  }, true);
+}
+
+async function showAssets(insert = false) {
+  const p = modal(insert
+    ? 'Выбрать ассет для монтажа'
+    : 'Библиотека ассетов');
+
+  if (!insert) {
+    button(p, 'Создать ассет', () => assetForm(null), true);
+  }
+
+  if (!assets.length) {
+    const note = document.createElement('p');
+    note.textContent = 'Библиотека пока пуста. Создай ассет через раздел «Ассеты» на главной.';
+    p.append(note);
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'assetgrid';
+  p.append(grid);
+
+  for (const a of assets) {
+    const b = document.createElement('button');
+    b.className = 'assetcard';
+
+    const img = document.createElement('img');
+    img.src = await mediaUrl(a.media);
+    img.alt = a.name;
+
+    const label = document.createElement('span');
+    label.textContent = a.name;
+    b.append(img, label);
+
+    b.onclick = () => {
+      if (!insert) return assetForm(a);
+      const content = modal('Добавить ' + a.name);
+      const preview = img.cloneNode();
+      preview.className = 'previewasset';
+      content.append(preview);
+
+      button(content, 'Добавить в монтаж', () => {
+        change(() => {
+          const c = {
+            id: uid(),
+            media: a.media,
+            type: 'image',
+            name: a.name,
+            start: 0,
+            duration: 3
+          };
+          project.clips.push(c);
+          selected = c.id;
+          position = total() - 3;
+        });
+        $('#modal').close();
+      }, true);
+    };
+
+    grid.append(b);
+  }
+}
+
+$('#assets').onclick = () => showAssets(false);
+
+async function openProject(p) {
+  stop();
+  await saveQueue.catch(() => {});
+  project = p;
+  history = [];
+  selected = null;
+  position = 0;
+  for (const c of p.clips) await mediaUrl(c.media);
+  localStorage.setItem('hc2-current', p.id);
+  $('#modal').close();
+  render();
+}
+
+function newProject() {
+  return {
+    id: uid(),
+    name: 'Новый фильм',
+    ratio: '9:16',
+    clips: []
+  };
+}
+
+$('#projects').onclick = async () => {
+  await saveQueue.catch(() => {});
+  projects = await request(
+    db.transaction('projects').objectStore('projects').getAll()
+  );
+
+  const p = modal('Мои проекты');
+  button(p, 'Новый проект', async () => {
+    const n = newProject();
+    await write('projects', n.id, n);
+    await openProject(n);
+  }, true);
+
+  button(p, 'Импортировать копию проекта',
+    () => $('#restorefile').click());
+
+  for (const item of projects) {
+    button(p, item.name + ' · ' + item.clips.length + ' клипов',
+      () => openProject(item));
+  }
+};
+
+function dataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+$('#savecopy').onclick = async () => {
+  stop();
+  try {
+    const snapshot = structuredClone(project);
+    const media = {};
+
+    for (const id of new Set(snapshot.clips.map(c => c.media))) {
+      const blob = await read('media', id);
+      if (!blob) throw new Error('Часть медиа недоступна');
+      media[id] = await dataUrl(blob);
+    }
+
+    const blob = new Blob([JSON.stringify({
+      format: 'hollywoodcoder-project-v2',
+      project: snapshot,
+      media
+    })], {type: 'application/json'});
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hollywoodcoder-project.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    toast('Копия проекта скачана. Это файл для продолжения монтажа.');
+  } catch (e) {
+    toast(e.message || 'Не удалось создать копию');
+  }
+};
+
+$('#restorefile').onchange = async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.format !== 'hollywoodcoder-project-v2' ||
+        !Array.isArray(data.project?.clips)) {
+      throw new Error('Неверный формат проекта');
+    }
+
+    const p = structuredClone(data.project);
+    if (typeof p.name !== 'string' ||
+        !['9:16', '16:9', '1:1', '4:3', '3:4'].includes(p.ratio)) {
+      throw new Error('Повреждены настройки');
+    }
+
+    const ids = new Map();
+    for (const c of p.clips) {
+      if (!['video', 'image'].includes(c.type) ||
+          typeof c.name !== 'string' ||
+          !Number.isFinite(c.duration) || c.duration <= 0 ||
+          !Number.isFinite(c.start) || c.start < 0) {
+        throw new Error('Повреждён клип');
+      }
+
+      if (c.type === 'video' &&
+          (!Number.isFinite(c.sourceDuration) ||
+           c.start + c.duration > c.sourceDuration + .01)) {
+        throw new Error('Повреждена длительность');
+      }
+
+      if (!ids.has(c.media)) {
+        const source = data.media?.[c.media];
+        if (typeof source !== 'string' ||
+            !/^data:(image|video)\//.test(source)) {
+          throw new Error('Медиа отсутствует');
+        }
+
+        const blob = await (await fetch(source)).blob();
+        const id = uid();
+        await write('media', id, blob);
+        ids.set(c.media, id);
+      }
+
+      c.media = ids.get(c.media);
+      c.id = uid();
+    }
+
+    p.id = uid();
+    await write('projects', p.id, p);
+    await openProject(p);
+    toast('Проект импортирован');
+  } catch (e) {
+    toast(e.message || 'Ошибка импорта');
+  }
+};
+
+$('#generation').onclick = () => {
+  const p = modal('Генерация Veo');
+  const note = document.createElement('p');
+  note.textContent = 'Подключение Veo ещё не настроено. Сначала нужен API-ключ выбранного сервиса. Уже готовые ролики можно добавить через красный плюс.';
+  p.append(note);
+};
+
+(async () => {
+  try {
+    const req = indexedDB.open('hollywoodcoder-studio', 1);
+    req.onupgradeneeded = () => {
+      for (const name of ['projects', 'assets', 'media']) {
+        req.result.createObjectStore(name);
+      }
+    };
+
+    db = await request(req);
+    projects = await request(
+      db.transaction('projects').objectStore('projects').getAll()
+    );
+    assets = await request(
+      db.transaction('assets').objectStore('assets').getAll()
+    );
+
+    for (const a of assets) await mediaUrl(a.media);
+    const current = localStorage.getItem('hc2-current');
+    project = projects.find(p => p.id === current) ||
+      projects[0] || newProject();
+    await write('projects', project.id, project);
+    await openProject(project);
+  } catch (e) {
+    toast('Хранилище браузера недоступно. Открой сайт в обычной вкладке.');
+  }
+})();
+
+$('#refresh').onclick = async () => {
+  stop();
+  try {
+    await save();
+    const url = new URL(location.href);
+    url.searchParams.set('update', Date.now().toString());
+    location.replace(url.href);
+  } catch (_) {
+    toast('Проект не сохранён. Скачай копию перед обновлением.');
+  }
+};
+</script>
+</body>
+</html>
