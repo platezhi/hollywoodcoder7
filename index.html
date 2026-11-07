@@ -75,6 +75,9 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #frame .lyr.sel{outline:2px solid #ff4b57;outline-offset:2px}
 #frame .lyr-resize{display:none;position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
 #frame .lyr.sel .lyr-resize{display:block}
+#frame .lyr[hidden],#frame .lyr img[hidden],#frame .lyr video[hidden]{display:none}
+.track-del{position:absolute;right:6px;top:-11px;width:22px;height:22px;border-radius:50%;border:1px solid #3a3f4a;background:#22262e;color:#cfd3dd;font-size:15px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;z-index:5;cursor:pointer}
+.track-del:hover{background:#3a2024;border-color:#ff4b57;color:#fff}
 .headcontrols{display:flex;align-items:center;gap:8px}
 #add-over{height:32px;padding:0 12px;border-radius:999px;background:#262a33;border:1px solid #34363c;color:#cfd3dd;font-size:12px;line-height:1;display:inline-flex;align-items:center;white-space:nowrap}
 .filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
@@ -444,6 +447,25 @@ function renderTimeline() {
     track.setAttribute('aria-label', 'Слой ' + (index + 1));
     host.append(track);
     renderTrack(track, clips, index);
+
+    if (index > 0) {
+      const del = document.createElement('button');
+      del.className = 'track-del';
+      del.type = 'button';
+      del.textContent = '×';
+      del.setAttribute('aria-label', 'Удалить слой ' + (index + 1));
+      del.onclick = event => {
+        event.stopPropagation();
+        stop();
+        change(() => {
+          layersOf().splice(index, 1);
+          if (!layersOf().length) layersOf().push([]);
+          selectedLayer = Math.min(selectedLayer, layersOf().length - 1);
+          selected = null;
+        });
+      };
+      track.append(del);
+    }
   });
 
   $('#countLayers').textContent = list.length;
