@@ -2128,15 +2128,46 @@ $('#duplicate').onclick = () => {
 /* ---------- Grok (xAI): генерация видео ---------- */
 const XAI_STORE = 'hollywoodcoder-xai-key';
 
+function normalizeKey(raw) {
+  return String(raw || '')
+    .replace(/^\s*bearer\s+/i, '')
+    .replace(/["'`\u00a0\s]/g, '')
+    .trim();
+}
+
 function xaiKey() {
-  try { return localStorage.getItem(XAI_STORE) || ''; } catch (_) { return ''; }
+  try { return normalizeKey(localStorage.getItem(XAI_STORE) || ''); } catch (_) { return ''; }
 }
 
 function setXaiKey(value) {
   try {
-    if (value) localStorage.setItem(XAI_STORE, value);
+    const clean = normalizeKey(value);
+    if (clean) localStorage.setItem(XAI_STORE, clean);
     else localStorage.removeItem(XAI_STORE);
   } catch (_) {}
+}
+
+function explainXaiError(message) {
+  const text = String(message || '');
+
+  if (/Incorrect API key|invalid.?api.?key|unauthori[sz]ed|401/i.test(text)) {
+    return text +
+      '\n\nЧто проверить:' +
+      '\n· ключ xAI начинается с «xai-» и берётся на https://console.x.ai (не Groq, не DeepSeek — у них другие ключи);' +
+      '\n· ключ скопирован целиком, без пробелов и кавычек (приложение их вырезает, но проверь);' +
+      '\n· ключ не удалён и не просрочен в консоли.';
+  }
+
+  if (/model/i.test(text) || /not found|not available|not supported/i.test(text)) {
+    return text +
+      '\n\nПохоже, у аккаунта нет доступа к этой модели видео. Приложение уже пробует запасную grok-imagine-video.';
+  }
+
+  if (/quota|billing|payment|credit|insufficient/i.test(text)) {
+    return text + '\n\nПохоже, закончились кредиты или не подключена оплата в console.x.ai.';
+  }
+
+  return text;
 }
 
 function findClipDeep(id) {
@@ -2330,7 +2361,7 @@ async function runGrokTask(taskId, prompt, key, sourceClip) {
       save();
     }
     toast(err.message.slice(0, 120));
-    showErrorDetails('Ошибка генерации', err.message);
+    showErrorDetails('Ошибка генерации', explainXaiError(err.message));
   }
 }
 
@@ -2411,12 +2442,18 @@ $('#key-btn').onclick = () => {
   p.append(link);
 
   button(p, 'Сохранить ключ', () => {
-    const value = input.value.trim();
+    const value = normalizeKey(input.value);
     if (!value) return toast('Вставь ключ');
+
     setXaiKey(value);
     refreshKeyButton();
     $('#modal').close();
-    toast('Ключ сохранён на этом устройстве');
+
+    if (!/^xai-/i.test(value)) {
+      toast('Сохранено, но ключи xAI обычно начинаются с «xai-» — проверь, что это не ключ другого сервиса');
+    } else {
+      toast('Ключ сохранён на этом устройстве');
+    }
   }, true);
 
   if (stored) {
@@ -3162,6 +3199,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
