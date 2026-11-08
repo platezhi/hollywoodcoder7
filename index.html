@@ -1779,6 +1779,17 @@ function filmSampleNode(film) {
   return div;
 }
 
+const FILM_PHOTOS = [
+  'films/portrait.jpg',
+  'films/landscape.jpg',
+  'films/night.jpg',
+  'films/food.jpg',
+  'films/city.jpg',
+  'films/nature.jpg'
+];
+
+const FILM_CREDITS = 'Фото примеров: Wikimedia Commons — PICQ (CC BY-SA 4.0), Jakub Fryš (CC BY-SA 4.0), Bristol city centre (CC BY-SA 3.0), W.carter (CC BY-SA 4.0), Jet Lowe (public domain), Cramoanier (CC BY-SA 3.0).';
+
 let sampleScenesCache = null;
 
 function sampleScenes() {
@@ -1927,22 +1938,22 @@ function sampleScenes() {
 
 function filmGallery(film) {
   const filter = film.css === 'none' ? '' : film.css;
-  const scenes = sampleScenes();
   const grid = document.createElement('div');
   grid.className = 'filmgrid';
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < FILM_PHOTOS.length; i++) {
     const tile = document.createElement('img');
     tile.className = 'filmthumb';
-    tile.src = scenes[i] || '';
+    tile.src = FILM_PHOTOS[i];
     tile.alt = '';
+    tile.loading = 'lazy';
     tile.style.filter = filter;
     grid.append(tile);
   }
 
-
   return grid;
 }
+
 
 
 function openFilmDetail(film) {
@@ -2694,6 +2705,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
