@@ -2441,19 +2441,37 @@ $('#key-btn').onclick = () => {
   link.innerHTML = 'Где взять: <a href="https://console.x.ai" target="_blank" rel="noopener" style="color:#ff8b93">console.x.ai</a>';
   p.append(link);
 
+  const problem = document.createElement('p');
+  problem.className = 'gen-hint';
+  problem.style.color = '#ff8b93';
+  problem.hidden = true;
+  p.append(problem);
+
   button(p, 'Сохранить ключ', () => {
     const value = normalizeKey(input.value);
-    if (!value) return toast('Вставь ключ');
+
+    if (!value) {
+      problem.hidden = false;
+      problem.textContent = 'Вставь ключ.';
+      return;
+    }
+
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+      problem.hidden = false;
+      problem.textContent = 'Это UUID — похоже на ID ключа из консоли, а не на сам секрет. Нужен ключ вида xai-… (он показывается один раз при создании ключа).';
+      return;
+    }
+
+    if (!/^xai-/i.test(value) || value.length < 24) {
+      problem.hidden = false;
+      problem.textContent = 'Это не похоже на ключ xAI. Ключ начинается с «xai-» и длинный (десятки символов). Ключи Groq (gsk_…), DeepSeek и других сервисов не подойдут.';
+      return;
+    }
 
     setXaiKey(value);
     refreshKeyButton();
     $('#modal').close();
-
-    if (!/^xai-/i.test(value)) {
-      toast('Сохранено, но ключи xAI обычно начинаются с «xai-» — проверь, что это не ключ другого сервиса');
-    } else {
-      toast('Ключ сохранён на этом устройстве');
-    }
+    toast('Ключ сохранён на этом устройстве');
   }, true);
 
   if (stored) {
