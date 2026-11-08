@@ -53,6 +53,11 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .assetcard img{width:100%;height:140px;object-fit:cover;display:block}
 .assetcard span{display:block;padding:10px}
 .filmswatch{display:block;width:100%;height:64px;object-fit:cover;background:linear-gradient(120deg,#ffb347,#ff6b6b,#7c5cff,#4be3c1)}
+.filmcard{height:154px;display:flex;flex-direction:column;padding:0;overflow:hidden;text-align:left}
+.filmcard .filmswatch{height:64px;flex:none}
+.filmlabel{flex:1;min-height:0;padding:8px 10px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.filmlabel b{font-size:12.5px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.filmlabel small{font-size:11px;color:#9aa0ad;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .previewasset{width:100%;height:180px;object-fit:contain;border-radius:9px}
 .projectrow{display:flex;gap:8px}
 .projectrow button:first-child{flex:1;text-align:left}
@@ -1660,18 +1665,30 @@ $('#ratio').onchange = e => change(() => project.ratio = e.target.value);
 
 /* ---------- Плёнка проекта ---------- */
 const FILMS = [
-  {id: 'none', name: 'Без плёнки', hint: 'чистая цифра', css: 'none'},
-  {id: 'portra', name: 'Kodak Portra 400', hint: 'тёплые кожи, мягкие тени', css: 'saturate(.95) contrast(1.02) sepia(.12) hue-rotate(-6deg)'},
-  {id: 'gold', name: 'Kodak Gold 200', hint: 'жёлтое солнце', css: 'sepia(.18) saturate(1.08) contrast(1.04) brightness(1.02)'},
-  {id: 'ultramax', name: 'Kodak UltraMax 400', hint: 'плотные цвета', css: 'saturate(1.18) contrast(1.06)'},
-  {id: 'ektar', name: 'Kodak Ektar 100', hint: 'холодная насыщенность', css: 'saturate(1.22) contrast(1.08) hue-rotate(3deg)'},
-  {id: 'velvia', name: 'Fuji Velvia 50', hint: 'ядрёная природа', css: 'saturate(1.35) contrast(1.14)'},
-  {id: 'provia', name: 'Fuji Provia 100F', hint: 'ровный баланс', css: 'saturate(1.06) contrast(1.03)'},
-  {id: 'superia', name: 'Fuji Superia 400', hint: 'зелёные тени', css: 'saturate(1.1) contrast(1.05) hue-rotate(-3deg)'},
-  {id: 'cinestill', name: 'CineStill 800T', hint: 'ночь и неон', css: 'saturate(1.12) contrast(1.06) hue-rotate(-8deg) brightness(.97)'},
-  {id: 'hp5', name: 'Ilford HP5 Plus', hint: 'мягкое ч/б', css: 'grayscale(1) contrast(1.16)'},
-  {id: 'trix', name: 'Kodak Tri-X 400', hint: 'жёсткое ч/б', css: 'grayscale(1) contrast(1.28) brightness(.98)'},
-  {id: 'polaroid', name: 'Polaroid 600', hint: 'выцветшее лето', css: 'saturate(.8) contrast(.92) sepia(.22) brightness(1.04)'}
+  {id: 'none', name: 'Без плёнки', hint: 'чистая цифра', css: 'none',
+   desc: 'Никакой эмуляции: кадр остаётся таким, каким его сняла камера. Нейтральная точка отсчёта, чтобы сравнить остальные плёнки.'},
+  {id: 'portra', name: 'Kodak Portra 400', hint: 'тёплые кожи', css: 'saturate(.95) contrast(1.02) sepia(.12) hue-rotate(-6deg)',
+   desc: 'Мягкий контраст, тёплые телесные тона и очень широкая широта — прощает ошибки экспозиции. Классика портрета и свадебной съёмки, особенно на плёнке 400.'},
+  {id: 'gold', name: 'Kodak Gold 200', hint: 'жёлтое солнце', css: 'sepia(.18) saturate(1.08) contrast(1.04) brightness(1.02)',
+   desc: 'Золотистый тёплый оттенок, плотные жёлтые и красные, заметное зерно. Семейные кадры, пляж, лето — та самая «плёнка из отпуска».'},
+  {id: 'ultramax', name: 'Kodak UltraMax 400', hint: 'плотные цвета', css: 'saturate(1.18) contrast(1.06)',
+   desc: 'Универсальная негативная плёнка: насыщенные цвета, терпимый контраст, крупное зерно. Хорошо идёт для города и репортажа в любую погоду.'},
+  {id: 'ektar', name: 'Kodak Ektar 100', hint: 'холодная насыщенность', css: 'saturate(1.22) contrast(1.08) hue-rotate(3deg)',
+   desc: 'Самая насыщенная негативная плёнка Kodak, мелкое зерно и чистые холодные оттенки. Пейзаж, архитектура, предметка — там, где важна детализация.'},
+  {id: 'velvia', name: 'Fuji Velvia 50', hint: 'ядрёная природа', css: 'saturate(1.35) contrast(1.14)',
+   desc: 'Слайд-плёнка с предельной насыщенностью, глубоким контрастом и мелким зерном. Закаты, зелень, вода — цвет «как на открытке».'},
+  {id: 'provia', name: 'Fuji Provia 100F', hint: 'ровный баланс', css: 'saturate(1.06) contrast(1.03)',
+   desc: 'Сбалансированная слайд-плёнка: точные цвета без перекосов, мелкое зерно. Универсальный выбор, когда нужен предсказуемый результат.'},
+  {id: 'superia', name: 'Fuji Superia 400', hint: 'зелёные тени', css: 'saturate(1.1) contrast(1.05) hue-rotate(-3deg)',
+   desc: 'Прохладный баланс с зеленоватыми тенями и крупным зерном. Улица, вечер, флуоресцентные лампы — характерный «фудзиевский» взгляд.'},
+  {id: 'cinestill', name: 'CineStill 800T', hint: 'ночь и неон', css: 'saturate(1.12) contrast(1.06) hue-rotate(-8deg) brightness(.97)',
+   desc: 'Киноплёнка без рема-джета, сбалансированная под вольфрамовый свет, с гало-ореолами вокруг ярких источников. Ночь, неон, витрины.'},
+  {id: 'hp5', name: 'Ilford HP5 Plus', hint: 'мягкое ч/б', css: 'grayscale(1) contrast(1.16)',
+   desc: 'Гибкая чёрно-белая плёнка 400: можно экспонировать «на широкую ногу», зерно вытягивает детали. Репортаж, портрет, контровой свет.'},
+  {id: 'trix', name: 'Kodak Tri-X 400', hint: 'жёсткое ч/б', css: 'grayscale(1) contrast(1.28) brightness(.98)',
+   desc: 'Легендарная ч/б плёнка фотожурналистики: высокий контраст и выразительное зерно. Улица, концерт, документальный репортаж.'},
+  {id: 'polaroid', name: 'Polaroid 600', hint: 'выцветшее лето', css: 'saturate(.8) contrast(.92) sepia(.22) brightness(1.04)',
+   desc: 'Мгновенный снимок: низкий контраст, мягкая резкость и выцветшие цвета. Ностальгия, дневниковые кадры, вечеринки.'}
 ];
 
 function filmById(id) {
@@ -1727,10 +1744,65 @@ function captureFrameSample() {
   }
 }
 
+function filmSampleNode(film) {
+  const filter = film.css === 'none' ? '' : film.css;
+  const videoClip = layersOf().flat().find(c => c.type === 'video' && urls.get(c.media));
+
+  if (videoClip) {
+    const v = document.createElement('video');
+    v.src = urls.get(videoClip.media);
+    v.muted = true;
+    v.loop = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    v.style.cssText = 'width:100%;height:180px;object-fit:cover;border-radius:12px;background:#000';
+    v.style.filter = filter;
+    v.play().catch(() => {});
+    return v;
+  }
+
+  const sample = captureFrameSample();
+  if (sample) {
+    const img = document.createElement('img');
+    img.src = sample;
+    img.style.cssText = 'width:100%;height:180px;object-fit:cover;border-radius:12px';
+    img.style.filter = filter;
+    return img;
+  }
+
+  const div = document.createElement('div');
+  div.className = 'filmswatch';
+  div.style.height = '180px';
+  div.style.filter = filter;
+  return div;
+}
+
+function openFilmDetail(film) {
+  const p = modal(film.name);
+  p.append(filmSampleNode(film));
+
+  const desc = document.createElement('p');
+  desc.textContent = film.desc;
+  p.append(desc);
+
+  const hint = document.createElement('p');
+  hint.className = 'gen-hint';
+  hint.textContent = 'Характер: ' + film.hint;
+  p.append(hint);
+
+  button(p, 'Применить плёнку', () => {
+    change(() => { project.film = film.id; });
+    $('#modal').close();
+    toast('Плёнка: ' + film.name);
+  }, true);
+
+  button(p, 'Назад к списку', () => $('#film-btn').click());
+}
+
 $('#film-btn').onclick = () => {
   const p = modal('Плёнка проекта');
   const note = document.createElement('p');
-  note.textContent = 'Выбери плёнку — весь проект сразу поменяет вид. Точный цветокор по кадру сделает ИИ-редактор.';
+  note.textContent = 'Выбери плёнку — весь проект сразу поменяет вид. Нажми на название, чтобы прочитать описание и посмотреть пример.';
   p.append(note);
 
   const sample = captureFrameSample();
@@ -1742,7 +1814,7 @@ $('#film-btn').onclick = () => {
   for (const film of FILMS) {
     const active = (project.film || 'none') === film.id;
     const b = document.createElement('button');
-    b.className = 'assetcard' + (active ? ' primary' : '');
+    b.className = 'filmcard' + (active ? ' primary' : '');
 
     const swatch = sample
       ? document.createElement('img')
@@ -1752,14 +1824,11 @@ $('#film-btn').onclick = () => {
     swatch.style.filter = film.css === 'none' ? '' : film.css;
 
     const label = document.createElement('span');
-    label.innerHTML = '<b>' + film.name + '</b><br><small>' + film.hint + '</small>';
+    label.className = 'filmlabel';
+    label.innerHTML = '<b>' + film.name + '</b><small>' + film.hint + '</small>';
 
     b.append(swatch, label);
-    b.onclick = () => {
-      change(() => { project.film = film.id; });
-      $('#modal').close();
-      toast('Плёнка: ' + film.name);
-    };
+    b.onclick = () => openFilmDetail(film);
     grid.append(b);
   }
 
@@ -2451,6 +2520,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
