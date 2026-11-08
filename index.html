@@ -380,7 +380,7 @@ function updatePlayhead() {
 
 async function thumbnail(clip) {
   if (!clip || !clip.media) return null;
-  const url = urls.get(clip.media);
+  const url = urls.get(clip.media) || clip.remote || '';
   if (clip.type === 'image') return url;
   if (thumbnails.has(clip.media)) return thumbnails.get(clip.media);
 
@@ -1438,7 +1438,7 @@ function preview() {
     const view = layerViews.get(index);
     if (!view) return;
     const item = clipAt(index, position);
-    const hasMedia = !!item && !!item.clip.media && !!urls.get(item.clip.media);
+    const hasMedia = !!item && !!(urls.get(item.clip.media) || item.clip.remote);
     const isVideo = hasMedia && item.clip.type === 'video';
     const wrap = view.wrap;
 
@@ -1477,7 +1477,7 @@ function preview() {
     view.video.hidden = !item || !isVideo;
 
     if (!item) { view.video.pause(); return; }
-    const url = urls.get(item.clip.media);
+    const url = urls.get(item.clip.media) || item.clip.remote || '';
     if (!url) { view.video.pause(); return; }
 
     if (!isVideo) {
@@ -2120,6 +2120,146 @@ $('#duplicate').onclick = () => {
   });
 };
 
+/* ---------- Grok (xAI): генерация видео ---------- */
+const XAI_STORE = 'hollywoodcoder-xai-key';
+
+function xaiKey() {
+  try { return localStorage.getItem(XAI_STORE) || ''; } catch (_) { return ''; }
+}
+
+function setXaiKey(value) {
+  try {
+    if (value) localStorage.setItem(XAI_STORE, value);
+    else localStorage.removeItem(XAI_STORE);
+  } catch (_) {}
+}
+
+function findClipDeep(id) {
+  for (const clips of layersOf()) {
+    const clip = clips.find(c => c.id === id);
+    if (clip) return clip;
+  }
+  return null;
+}
+
+async function xaiCreate(prompt, key) {
+  const res = await fetch('https://api.x.ai/v1/videos/generations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + key
+    },
+    body: JSON.stringify({ model: 'grok-imagine-video', prompt })
+  });
+
+  if (!res.ok) {
+    const text = (await res.text()).slice(0, 180);
+    throw new Error('xAI ' + res.status + ': ' + text);
+  }
+
+  const data = await res.json();
+  if (!data.request_id) throw new Error('xAI не вернул request_id');
+  return data.request_id;
+}
+
+async function xaiWait(requestId, key, onTick) {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    const res = await fetch('https://api.x.ai/v1/videos/' + encodeURIComponent(requestId), {
+      headers: { Authorization: 'Bearer ' + key }
+    });
+    if (!res.ok) throw new Error('xAI ' + res.status);
+    const data = await res.json();
+
+    if (data.status === 'done') {
+      const url = data.video && data.video.url;
+      if (!url) throw new Error('xAI не вернул ссылку на видео');
+      return url;
+    }
+    if (data.status === 'failed' || data.status === 'expired') {
+      throw new Error('Генерация не удалась: ' + data.status);
+    }
+    if (onTick) onTick(attempt);
+    await new Promise(r => setTimeout(r, 5000));
+  }
+  throw new Error('Генерация идёт слишком долго');
+}
+
+async function xaiStoreVideo(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('download');
+    const blob = await res.blob();
+    const media = uid();
+    await write('media', media, blob);
+    const objectUrl = URL.createObjectURL(blob);
+    urls.set(media, objectUrl);
+
+    const probe = document.createElement('video');
+    probe.muted = true;
+    probe.playsInline = true;
+    probe.preload = 'metadata';
+    probe.src = objectUrl;
+
+    const length = await new Promise(resolve => {
+      const stop = setTimeout(() => resolve(0), 4000);
+      probe.onloadedmetadata = () => {
+        clearTimeout(stop);
+        resolve(Number.isFinite(probe.duration) ? probe.duration : 0);
+      };
+      probe.onerror = () => { clearTimeout(stop); resolve(0); };
+    });
+
+    return { media, duration: length > 0 ? length : 4, remote: null };
+  } catch (_) {
+    return { media: null, duration: 4, remote: url };
+  }
+}
+
+async function runGrokTask(taskId, prompt, key) {
+  try {
+    const start = findClipDeep(taskId);
+    if (start) {
+      start.gen.status = 'generating';
+      start.name = '⏳ ' + prompt.slice(0, 22);
+      render();
+    }
+
+    const requestId = await xaiCreate(prompt, key);
+    const busy = findClipDeep(taskId);
+    if (busy) { busy.gen.requestId = requestId; save(); }
+
+    const url = await xaiWait(requestId, key);
+    const stored = await xaiStoreVideo(url);
+
+    const target = findClipDeep(taskId);
+    if (!target) return;
+
+    target.type = 'video';
+    target.media = stored.media;
+    target.remote = stored.remote;
+    target.name = '🎬 ' + prompt.slice(0, 22);
+    target.duration = stored.duration;
+    target.sourceDuration = stored.duration;
+    target.start = 0;
+    target.gen.status = 'done';
+    target.gen.url = url;
+
+    render();
+    save();
+    toast('Генерация готова');
+  } catch (err) {
+    const target = findClipDeep(taskId);
+    if (target) {
+      target.gen.status = 'failed';
+      target.gen.error = err.message;
+      target.name = '⚠ ' + prompt.slice(0, 20);
+      render();
+      save();
+    }
+    toast(err.message);
+  }
+}
+
 $('#gen-clip').onclick = () => {
   const item = clipAt(selectedLayer, position);
   const clip = item ? item.clip : currentClips().find(c => c.id === selected);
@@ -2162,14 +2302,59 @@ $('#gen-clip').onclick = () => {
     p.append(row);
   }
 
-  const hint = document.createElement('p');
-  hint.className = 'gen-hint';
-  hint.textContent = 'ИИ-редактор пока не подключён: задача сохранится в проекте и встанет в очередь на таймлайне.';
-  p.append(hint);
+  const stored = xaiKey();
+  if (stored) {
+    const ok = document.createElement('p');
+    ok.className = 'gen-hint';
+    ok.textContent = 'Grok подключён: видео сгенерируется через xAI. Ключ хранится только в этом браузере.';
+    p.append(ok);
+
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'chip';
+    reset.textContent = 'Сбросить ключ';
+    reset.onclick = () => {
+      setXaiKey('');
+      toast('Ключ xAI удалён');
+      $('#modal').close();
+      $('#gen-clip').click();
+    };
+    p.append(reset);
+  } else {
+    const label = document.createElement('p');
+    label.className = 'gen-hint';
+    label.textContent = 'Ключ xAI (console.x.ai) — хранится только в этом браузере:';
+    p.append(label);
+
+    const input = document.createElement('input');
+    input.type = 'password';
+    input.placeholder = 'xai-…';
+    input.autocomplete = 'off';
+    input.style.padding = '10px';
+    input.style.borderRadius = '10px';
+    input.style.border = '1px solid #3a3f4a';
+    input.style.background = '#191c22';
+    input.style.color = '#eee';
+    p.append(input);
+
+    const hint = document.createElement('p');
+    hint.className = 'gen-hint';
+    hint.textContent = 'Без ключа задача просто встанет в очередь на таймлайне и не запустится.';
+    p.append(hint);
+  }
 
   button(p, 'Сгенерировать', () => {
     const text = prompt.value.trim();
     if (!text) return toast('Опиши, что сгенерировать');
+
+    let key = xaiKey();
+    const field = p.querySelector('input[type="password"]');
+    if (field && field.value.trim()) {
+      key = field.value.trim();
+      setXaiKey(key);
+    }
+
+    let taskId = null;
 
     change(() => {
       const list = currentClips();
@@ -2190,12 +2375,18 @@ $('#gen-clip').onclick = () => {
           sourceId: clip.id
         }
       };
+      taskId = generated.id;
       list.splice(index + 1, 0, generated);
       selected = generated.id;
     });
 
     $('#modal').close();
-    toast('Задача генерации добавлена в очередь');
+
+    if (key && taskId) {
+      runGrokTask(taskId, text, key);
+    } else {
+      toast('Задача в очереди: подключи ключ xAI, чтобы запустить генерацию');
+    }
   }, true);
 };
 
