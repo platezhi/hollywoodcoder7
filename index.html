@@ -94,6 +94,11 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #add-over{height:32px;padding:0 12px;border-radius:999px;background:#262a33;border:1px solid #34363c;color:#cfd3dd;font-size:12px;line-height:1;display:inline-flex;align-items:center;white-space:nowrap}
 .filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
 .filmclip.selected{border:3px solid white;z-index:2}
+.filmclip.gen{border-color:#ffb347;background-image:repeating-linear-gradient(45deg,rgba(255,179,71,.14) 0 8px,transparent 8px 16px)}
+.gen-assets{display:flex;flex-wrap:wrap;gap:8px}
+.gen-assets .chip{border:1px solid #3a3f4a;background:#22262e;color:#cfd3dd;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer}
+.gen-assets .chip.on{border-color:#ff4b57;background:#3a2024;color:#fff}
+.gen-hint{font-size:12px;color:#9aa0ad;line-height:1.5;margin:0}
 .clip-name{position:absolute;left:17px;top:3px;background:#ff4b57;color:#fff;font-size:11px;font-weight:600;border-radius:6px;padding:4px 6px;white-space:nowrap;max-width:calc(100% - 34px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .clip-duration{position:absolute;right:17px;bottom:2px;padding:3px 5px;border-radius:4px;background:#000b;font-size:11px;pointer-events:none}
 .trim-handle{position:absolute;top:0;bottom:0;width:17px;border:0;background:#fff;color:#15171b;font-size:23px;padding:0;border-radius:0;touch-action:none;cursor:ew-resize;display:flex;align-items:center;justify-content:center}
@@ -202,6 +207,10 @@ nav .icon{width:25px;height:25px}
 </section>
 
 <div id="editbar" hidden>
+<button id="gen-clip">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 6.3L21 12l-6.3 2.7L12 21l-2.7-6.3L3 12l6.3-2.7Z"/></svg>
+<span>Генерация</span>
+</button>
 <button id="split">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><rect x="3" y="6" width="6" height="12" rx="1.5"/><rect x="15" y="6" width="6" height="12" rx="1.5"/></svg>
 <span>Разрезать</span>
@@ -686,7 +695,7 @@ function renderTrack(track, clips, layer) {
     const clipStart = start + clipGap(clip);
     const isSelected = clip.id === selected && selectedLayer === layer;
     const block = document.createElement('div');
-    block.className = 'filmclip' + (isSelected ? ' selected' : '');
+    block.className = 'filmclip' + (isSelected ? ' selected' : '') + (clip.gen ? ' gen' : '');
     block.style.left = clipStart * pixelsPerSecond + 'px';
     block.style.width = clip.duration * pixelsPerSecond + 'px';
     block.tabIndex = 0;
@@ -1729,6 +1738,77 @@ $('#duplicate').onclick = () => {
     list.splice(i + 1, 0, copy);
     selected = copy.id;
   });
+};
+
+$('#gen-clip').onclick = () => {
+  const item = clipAt(selectedLayer, position);
+  const clip = item ? item.clip : currentClips().find(c => c.id === selected);
+  if (!clip) return toast('Выбери фото в слое');
+  if (clip.type !== 'image') return toast('Генерация доступна для фото');
+
+  const p = modal('Генерация из фото');
+
+  const preview = document.createElement('img');
+  preview.className = 'previewasset';
+  preview.src = urls.get(clip.media) || '';
+  p.append(preview);
+
+  const prompt = document.createElement('textarea');
+  prompt.placeholder = 'Что сделать: оживить, сменить свет, сделать крупнее, другой стиль…';
+  p.append(prompt);
+
+  const chosen = new Set();
+
+  if (assets.length) {
+    const label = document.createElement('p');
+    label.className = 'gen-hint';
+    label.textContent = 'Добавить ассеты (#):';
+    p.append(label);
+
+    const row = document.createElement('div');
+    row.className = 'gen-assets';
+    for (const asset of assets) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = asset.name;
+      chip.onclick = () => {
+        chip.classList.toggle('on');
+        if (chip.classList.contains('on')) chosen.add(asset.id);
+        else chosen.delete(asset.id);
+      };
+      row.append(chip);
+    }
+    p.append(row);
+  }
+
+  const hint = document.createElement('p');
+  hint.className = 'gen-hint';
+  hint.textContent = 'ИИ-редактор пока не подключён: задача сохранится в проекте и встанет в очередь на таймлайне.';
+  p.append(hint);
+
+  button(p, 'Сгенерировать', () => {
+    const text = prompt.value.trim();
+    if (!text) return toast('Опиши, что сгенерировать');
+
+    change(() => {
+      const list = currentClips();
+      const index = list.indexOf(clip);
+      const generated = {
+        ...clip,
+        id: uid(),
+        gap: 0,
+        duration: 3,
+        name: '⌛ ' + text.slice(0, 22),
+        gen: { prompt: text, assets: [...chosen], status: 'pending' }
+      };
+      list.splice(index + 1, 0, generated);
+      selected = generated.id;
+    });
+
+    $('#modal').close();
+    toast('Задача генерации добавлена в очередь');
+  }, true);
 };
 
 $('#split').onclick = () => {
