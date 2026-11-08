@@ -398,18 +398,53 @@ async function thumbnail(clip) {
       resolve(value);
     };
 
-    const timer = setTimeout(() => finish(null), 5000);
-    video.onloadeddata = () => {
+    const capture = () => {
       try {
         const canvas = document.createElement('canvas');
         canvas.width = 160;
         canvas.height = 90;
-        canvas.getContext('2d').drawImage(video, 0, 0, 160, 90);
-        finish(canvas.toDataURL('image/jpeg', .65));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, 160, 90);
+
+        // если кадр полностью чёрный — считаем, что кадра нет
+        const data = ctx.getImageData(0, 0, 160, 90).data;
+        let lit = 0;
+        for (let i = 0; i < data.length; i += 4 * 13) {
+          if (data[i] + data[i + 1] + data[i + 2] > 30) lit++;
+        }
+        return lit > 6 ? canvas.toDataURL('image/jpeg', .65) : null;
       } catch (_) {
-        finish(null);
+        return null;
       }
     };
+
+    const seekTo = time => new Promise(done => {
+      const guard = setTimeout(done, 800);
+      video.onseeked = () => {
+        clearTimeout(guard);
+        video.onseeked = null;
+        done();
+      };
+      try { video.currentTime = time; } catch (_) { clearTimeout(guard); done(); }
+    });
+
+    const timer = setTimeout(() => finish(null), 4500);
+
+    video.onloadeddata = async () => {
+      const length = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      const points = [0, length * 0.25, length * 0.5].filter(t => t >= 0 && (length === 0 || t < length));
+
+      for (const point of points) {
+        if (point > 0) await seekTo(point);
+        const shot = capture();
+        if (shot) {
+          finish(shot);
+          return;
+        }
+      }
+      finish(null);
+    };
+
     video.onerror = () => finish(null);
     video.src = url;
   });
@@ -436,14 +471,21 @@ function renderRuler() {
   const ruler = $('#ruler');
   const step = rulerStep(pixelsPerSecond);
   const minor = step / 5;
-  const start = Math.max(0, viewport.scrollLeft - 100) / pixelsPerSecond;
-  const end = Math.min(
-    parseFloat($('#timeline-content').style.width),
-    viewport.scrollLeft + viewport.clientWidth + 100
-  ) / pixelsPerSecond;
+  const fullWidth = parseFloat($('#timeline-content').style.width) || 0;
+
+  let start = 0;
+  let end = fullWidth / pixelsPerSecond;
+
+  // если тиков слишком много, рисуем только видимую область с запасом
+  const estimated = fullWidth / (minor * pixelsPerSecond);
+  if (estimated > 3000) {
+    start = Math.max(0, viewport.scrollLeft - 300) / pixelsPerSecond;
+    end = Math.min(fullWidth, viewport.scrollLeft + viewport.clientWidth + 300) / pixelsPerSecond;
+  }
+
   const fragment = document.createDocumentFragment();
 
-  for (let index = Math.floor(start / minor);
+  for (let index = Math.max(0, Math.floor(start / minor));
        index <= Math.ceil(end / minor); index++) {
     const time = index * minor;
     const major = index % 5 === 0;
@@ -2759,6 +2801,7 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
