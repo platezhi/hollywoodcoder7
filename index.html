@@ -69,8 +69,10 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .track.carrying{opacity:.45}
 .drag-ghost{position:fixed;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;width:36px;height:30px;background:#2b303a;border:1px solid #ff4b57;color:#ff8b93;border-radius:8px;font-size:12px;line-height:1;z-index:80;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.5)}
 .insert-line{position:absolute;height:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
+.drag-ghost[hidden]{display:none}
 .insert-mark{position:absolute;width:3px;background:#ff4b57;border-radius:2px;z-index:70;pointer-events:none}
 .expbar{position:fixed;inset:0;background:rgba(8,9,12,.72);backdrop-filter:blur(4px);z-index:90;display:flex;align-items:center;justify-content:center;padding:20px}
+.expbar[hidden]{display:none}
 .expinner{width:min(360px,92vw);background:#1c1e24;border:1px solid #40434d;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;color:#eee}
 .expbar-line{height:8px;border-radius:6px;background:#2b303a;overflow:hidden}
 .expbar-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff4b57,#ff8b93);transition:width .2s}
@@ -2400,6 +2402,8 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
 
 
 
