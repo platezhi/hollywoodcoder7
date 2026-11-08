@@ -1,0 +1,50 @@
+[
+  {
+    "slug": "portrait",
+    "file": "films/portrait.jpg",
+    "title": "File:Kutia kondh woman 3.jpg",
+    "license": "CC BY-SA 4.0",
+    "artist": "PICQ, background blur by Samsara",
+    "source": "https://commons.wikimedia.org/wiki/File%3AKutia_kondh_woman_3.jpg"
+  },
+  {
+    "slug": "landscape",
+    "file": "films/landscape.jpg",
+    "title": "File:Castle Mountain.jpg",
+    "license": "CC BY-SA 4.0",
+    "artist": "Jakub Fryš",
+    "source": "https://commons.wikimedia.org/wiki/File%3ACastle_Mountain.jpg"
+  },
+  {
+    "slug": "night",
+    "file": "films/night.jpg",
+    "title": "File:Bristol 041019 ms night 02.jpg",
+    "license": "CC BY-SA 3.0",
+    "artist": "Bristol city centre by Joe D, October 19 2004.",
+    "source": "https://commons.wikimedia.org/wiki/File%3ABristol_041019_ms_night_02.jpg"
+  },
+  {
+    "slug": "food",
+    "file": "films/food.jpg",
+    "title": "File:Spaghetti dish.jpg",
+    "license": "CC BY-SA 3.0",
+    "artist": "jeuwre",
+    "source": "https://commons.wikimedia.org/wiki/File%3ASpaghetti_dish.jpg"
+  },
+  {
+    "slug": "city",
+    "file": "films/city.jpg",
+    "title": "File:Central Park New York City New York 23 cropped.jpg",
+    "license": "Public domain",
+    "artist": "Jet Lowe",
+    "source": "https://commons.wikimedia.org/wiki/File%3ACentral_Park_New_York_City_New_York_23_cropped.jpg"
+  },
+  {
+    "slug": "nature",
+    "file": "films/nature.jpg",
+    "title": "File:HK Kln Park forest trees green Oct-2012.JPG",
+    "license": "CC BY-SA 3.0",
+    "artist": "Cramoanier",
+    "source": "https://commons.wikimedia.org/wiki/File%3AHK_Kln_Park_forest_trees_green_Oct-2012.JPG"
+  }
+]
