@@ -53,6 +53,8 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .assetcard img{width:100%;height:140px;object-fit:cover;display:block}
 .assetcard span{display:block;padding:10px}
 .filmswatch{display:block;width:100%;height:64px;object-fit:cover;background:linear-gradient(120deg,#ffb347,#ff6b6b,#7c5cff,#4be3c1)}
+.filmgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.filmthumb{display:block;width:100%;height:76px;object-fit:cover;border-radius:8px;overflow:hidden;background:linear-gradient(120deg,#ffb347,#ff6b6b,#7c5cff,#4be3c1)}
 .filmcard{height:154px;display:flex;flex-direction:column;padding:0;overflow:hidden;text-align:left}
 .filmcard .filmswatch{height:64px;flex:none}
 .filmlabel{flex:1;min-height:0;padding:8px 10px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
@@ -1777,9 +1779,50 @@ function filmSampleNode(film) {
   return div;
 }
 
+function filmGallery(film) {
+  const filter = film.css === 'none' ? '' : film.css;
+  const clips = layersOf().flat().filter(c => urls.get(c.media)).slice(0, 6);
+  const grid = document.createElement('div');
+  grid.className = 'filmgrid';
+
+  const positions = ['50% 50%', '20% 30%', '80% 30%', '30% 75%', '70% 70%', '50% 20%'];
+
+  for (let i = 0; i < 6; i++) {
+    const clip = clips.length ? clips[i % clips.length] : null;
+
+    if (!clip) {
+      const tile = document.createElement('div');
+      tile.className = 'filmthumb';
+      tile.style.filter = filter;
+      grid.append(tile);
+      continue;
+    }
+
+    const el = document.createElement(clip.type === 'video' ? 'video' : 'img');
+    el.className = 'filmthumb';
+    el.src = urls.get(clip.media);
+    if (clip.type === 'video') {
+      el.muted = true;
+      el.playsInline = true;
+      el.preload = 'metadata';
+    }
+    el.style.filter = filter;
+    el.style.objectPosition = positions[i % positions.length];
+    grid.append(el);
+  }
+
+  return grid;
+}
+
 function openFilmDetail(film) {
   const p = modal(film.name);
   p.append(filmSampleNode(film));
+
+  const galleryTitle = document.createElement('p');
+  galleryTitle.className = 'gen-hint';
+  galleryTitle.textContent = 'Примеры кадров:';
+  p.append(galleryTitle);
+  p.append(filmGallery(film));
 
   const desc = document.createElement('p');
   desc.textContent = film.desc;
@@ -2520,6 +2563,8 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
 
 
 
