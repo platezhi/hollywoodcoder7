@@ -92,10 +92,10 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 #frame .lyr img,#frame .lyr video{display:block;width:100%;object-fit:contain;pointer-events:none}
 #frame .lyr.base img,#frame .lyr.base video{height:100%}
 #frame .lyr.overlay img,#frame .lyr.overlay video{height:auto}
-#frame .lyr.sel{outline:2px solid #ff4b57;outline-offset:2px}
-.selbox{position:absolute;border:2px dashed #ff4b57;box-sizing:border-box;pointer-events:auto;touch-action:none;cursor:move;z-index:60}
-.selbox .sel-handle{position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
-#frame .lyr-resize{display:none;position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:#ff4b57;border:2px solid #fff;box-sizing:border-box;cursor:nwse-resize;touch-action:none}
+#frame .lyr.sel{outline:1px solid rgba(255,75,87,.85);outline-offset:1px}
+.selbox{position:absolute;border:1px solid rgba(255,75,87,.9);box-sizing:border-box;pointer-events:auto;touch-action:none;cursor:move;z-index:60}
+.selbox .sel-handle{position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:transparent;border:0;cursor:nwse-resize;touch-action:none}
+#frame .lyr-resize{display:none;position:absolute;right:-11px;bottom:-11px;width:22px;height:22px;border-radius:50%;background:transparent;border:0;cursor:nwse-resize;touch-action:none}
 #frame .lyr.sel .lyr-resize{display:block}
 #frame .lyr[hidden],#frame .lyr img[hidden],#frame .lyr video[hidden]{display:none}
 .track-del{position:absolute;right:6px;top:-11px;width:22px;height:22px;border-radius:50%;border:1px solid #3a3f4a;background:#22262e;color:#cfd3dd;font-size:15px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;z-index:5;cursor:pointer}
@@ -103,7 +103,7 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .headcontrols{display:flex;align-items:center;gap:8px}
 #add-over{height:32px;padding:0 12px;border-radius:999px;background:#262a33;border:1px solid #34363c;color:#cfd3dd;font-size:12px;line-height:1;display:inline-flex;align-items:center;white-space:nowrap}
 .filmclip{position:absolute;top:0;height:100%;border:2px solid #484c58;border-radius:8px;background-color:#303641;background-size:auto 100%;background-repeat:repeat-x;overflow:hidden;cursor:crosshair;user-select:none;-webkit-user-select:none}
-.filmclip.selected{border:3px solid white;z-index:2}
+.filmclip.selected{border:2px solid white;z-index:2}
 .filmclip.gen{border-color:#ffb347;background-image:repeating-linear-gradient(45deg,rgba(255,179,71,.14) 0 8px,transparent 8px 16px)}
 .gen-assets{display:flex;flex-wrap:wrap;gap:8px}
 .gen-assets .chip{border:1px solid #3a3f4a;background:#22262e;color:#cfd3dd;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer}
