@@ -1470,11 +1470,19 @@ function preview() {
   const selView = selItem ? layerViews.get(selectedLayer) : null;
   if (selItem && selView && !selView.wrap.hidden) {
     const rect = selView.wrap.getBoundingClientRect();
-    box.hidden = false;
-    box.style.left = (rect.left + window.scrollX) + 'px';
-    box.style.top = (rect.top + window.scrollY) + 'px';
-    box.style.width = rect.width + 'px';
-    box.style.height = rect.height + 'px';
+    const frameRect = document.getElementById('frame').getBoundingClientRect();
+    const top = Math.max(rect.top, frameRect.top);
+    const bottom = Math.min(rect.bottom, frameRect.bottom);
+
+    if (bottom - top < 10) {
+      box.hidden = true;
+    } else {
+      box.hidden = false;
+      box.style.left = (rect.left + window.scrollX) + 'px';
+      box.style.top = (top + window.scrollY) + 'px';
+      box.style.width = rect.width + 'px';
+      box.style.height = (bottom - top) + 'px';
+    }
   } else {
     box.hidden = true;
   }
