@@ -690,6 +690,7 @@ function renderTrack(track, clips, layer) {
 
   track.onpointerdown = event => {
     if (event.target !== track || !event.isPrimary || !project) return;
+    if (!clips.length) return;
     startLayerReorder(layer, event.clientY);
   };
 
