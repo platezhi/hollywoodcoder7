@@ -2176,33 +2176,51 @@ function xaiImageData(clip) {
 
 async function xaiCreate(prompt, key, options) {
   const opts = options || {};
-  const payload = {
-    model: 'grok-imagine-video-1.5',
-    prompt,
-    duration: opts.duration || 6,
-    resolution: '720p'
-  };
+  const models = ['grok-imagine-video-1.5', 'grok-imagine-video'];
+  let lastError = null;
 
-  if (opts.aspect) payload.aspect_ratio = opts.aspect;
-  if (opts.image) payload.image = { url: opts.image };
+  for (const model of models) {
+    const payload = {
+      model,
+      prompt,
+      duration: opts.duration || 6,
+      resolution: '720p'
+    };
 
-  const res = await fetch('https://api.x.ai/v1/videos/generations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + key
-    },
-    body: JSON.stringify(payload)
-  });
+    if (opts.aspect) payload.aspect_ratio = opts.aspect;
+    if (opts.image) payload.image = { url: opts.image };
 
-  if (!res.ok) {
-    const text = (await res.text()).slice(0, 180);
-    throw new Error('xAI ' + res.status + ': ' + text);
+    let res;
+    try {
+      res = await fetch('https://api.x.ai/v1/videos/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + key
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      throw new Error('Сеть: не удалось связаться с api.x.ai (' + err.message + ')');
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      if (!data.request_id) throw new Error('xAI не вернул request_id');
+      return data.request_id;
+    }
+
+    const text = await res.text();
+    lastError = new Error('xAI ' + res.status + ' [' + model + ']: ' + text.slice(0, 400));
+
+    const modelIssue = res.status === 404 ||
+      /model/i.test(text) ||
+      /not (found|available|supported)/i.test(text);
+
+    if (!modelIssue) throw lastError;
   }
 
-  const data = await res.json();
-  if (!data.request_id) throw new Error('xAI не вернул request_id');
-  return data.request_id;
+  throw lastError;
 }
 
 async function xaiWait(requestId, key, onTick) {
@@ -2311,8 +2329,37 @@ async function runGrokTask(taskId, prompt, key, sourceClip) {
       render();
       save();
     }
-    toast(err.message);
+    toast(err.message.slice(0, 120));
+    showErrorDetails('Ошибка генерации', err.message);
   }
+}
+
+function showErrorDetails(title, text) {
+  const p = modal(title);
+
+  const pre = document.createElement('pre');
+  pre.textContent = text;
+  pre.style.cssText = 'white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.45;background:#15181e;border:1px solid #2b303a;padding:12px;border-radius:10px;max-height:42vh;overflow:auto;margin:0';
+  p.append(pre);
+
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'chip';
+  copy.textContent = 'Скопировать текст';
+  copy.style.alignSelf = 'flex-start';
+  copy.onclick = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast('Скопировано'),
+        () => toast('Не удалось скопировать')
+      );
+    } else {
+      toast('Копирование недоступно');
+    }
+  };
+  p.append(copy);
+
+  button(p, 'Закрыть', () => $('#modal').close());
 }
 
 function keyMask(key) {
