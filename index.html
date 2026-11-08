@@ -81,6 +81,7 @@ dialog::backdrop{background:#000a;backdrop-filter:blur(5px)}
 .expbar{position:fixed;inset:0;background:rgba(8,9,12,.72);backdrop-filter:blur(4px);z-index:90;display:flex;align-items:center;justify-content:center;padding:20px}
 .expbar[hidden]{display:none}
 #sound.off{color:#ff6b74;opacity:.75}
+#key-btn.on{color:#4be3a1}
 .expinner{width:min(360px,92vw);background:#1c1e24;border:1px solid #40434d;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;color:#eee}
 .expbar-line{height:8px;border-radius:6px;background:#2b303a;overflow:hidden}
 .expbar-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff4b57,#ff8b93);transition:width .2s}
@@ -154,6 +155,10 @@ nav .icon{width:25px;height:25px}
 <button id="film-btn" aria-label="Плёнка проекта" title="Плёнка проекта">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7.5 5v14M16.5 5v14"/><circle cx="5.6" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="5.6" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5.6" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="18.4" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
 <span>Плёнка</span>
+</button>
+<button id="key-btn" aria-label="Вставить API-ключ xAI" title="Ключ xAI (хранится только в этом браузере)">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="12" r="3.6"/><path d="M11.6 12H20M17 12v3M14 12v2.2"/></svg>
+<span>Ключ</span>
 </button>
 <button id="export-btn" aria-label="Экспорт видео">
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m10 9 5 3-5 3z" fill="currentColor" stroke="none"/></svg>
@@ -2142,14 +2147,52 @@ function findClipDeep(id) {
   return null;
 }
 
-async function xaiCreate(prompt, key) {
+function xaiImageData(clip) {
+  const url = urls.get(clip.media) || clip.remote;
+  if (!url) return Promise.resolve(null);
+
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    img.onload = () => {
+      try {
+        const max = 1024;
+        const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', .85));
+      } catch (_) {
+        resolve(null);
+      }
+    };
+
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function xaiCreate(prompt, key, options) {
+  const opts = options || {};
+  const payload = {
+    model: 'grok-imagine-video-1.5',
+    prompt,
+    duration: opts.duration || 6,
+    resolution: '720p'
+  };
+
+  if (opts.aspect) payload.aspect_ratio = opts.aspect;
+  if (opts.image) payload.image = { url: opts.image };
+
   const res = await fetch('https://api.x.ai/v1/videos/generations', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: 'Bearer ' + key
     },
-    body: JSON.stringify({ model: 'grok-imagine-video', prompt })
+    body: JSON.stringify(payload)
   });
 
   if (!res.ok) {
@@ -2215,7 +2258,7 @@ async function xaiStoreVideo(url) {
   }
 }
 
-async function runGrokTask(taskId, prompt, key) {
+async function runGrokTask(taskId, prompt, key, sourceClip) {
   try {
     const start = findClipDeep(taskId);
     if (start) {
@@ -2224,9 +2267,21 @@ async function runGrokTask(taskId, prompt, key) {
       render();
     }
 
-    const requestId = await xaiCreate(prompt, key);
+    const image = sourceClip ? await xaiImageData(sourceClip) : null;
+    const ratio = project.ratio === '9:16' || project.ratio === '16:9' ? project.ratio : null;
+
+    const requestId = await xaiCreate(prompt, key, {
+      image,
+      aspect: ratio,
+      duration: 6
+    });
+
     const busy = findClipDeep(taskId);
-    if (busy) { busy.gen.requestId = requestId; save(); }
+    if (busy) {
+      busy.gen.requestId = requestId;
+      busy.gen.hasImage = !!image;
+      save();
+    }
 
     const url = await xaiWait(requestId, key);
     const stored = await xaiStoreVideo(url);
@@ -2259,6 +2314,73 @@ async function runGrokTask(taskId, prompt, key) {
     toast(err.message);
   }
 }
+
+function keyMask(key) {
+  if (!key) return '';
+  if (key.length <= 10) return '••••';
+  return key.slice(0, 4) + '…' + key.slice(-4);
+}
+
+function refreshKeyButton() {
+  const btn = document.getElementById('key-btn');
+  if (!btn) return;
+  const stored = xaiKey();
+  btn.classList.toggle('on', !!stored);
+  btn.setAttribute('aria-label', stored ? 'Ключ xAI сохранён' : 'Вставить API-ключ xAI');
+  btn.title = stored
+    ? 'Ключ xAI сохранён (' + keyMask(stored) + '), только в этом браузере'
+    : 'Вставить ключ xAI — хранится только на этом устройстве';
+}
+
+$('#key-btn').onclick = () => {
+  const p = modal('Ключ xAI');
+
+  const info = document.createElement('p');
+  info.className = 'gen-hint';
+  info.textContent = 'Ключ сохраняется только в этом браузере (localStorage). На сайт и в репозиторий он не попадает — используется только в запросах к api.x.ai.';
+  p.append(info);
+
+  const stored = xaiKey();
+  const status = document.createElement('p');
+  status.className = 'gen-hint';
+  status.textContent = stored ? 'Сейчас сохранён ключ ' + keyMask(stored) : 'Ключ пока не задан.';
+  p.append(status);
+
+  const input = document.createElement('input');
+  input.type = 'password';
+  input.placeholder = 'xai-…';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.style.padding = '12px';
+  input.style.borderRadius = '10px';
+  input.style.border = '1px solid #3a3f4a';
+  input.style.background = '#191c22';
+  input.style.color = '#eee';
+  p.append(input);
+
+  const link = document.createElement('p');
+  link.className = 'gen-hint';
+  link.innerHTML = 'Где взять: <a href="https://console.x.ai" target="_blank" rel="noopener" style="color:#ff8b93">console.x.ai</a>';
+  p.append(link);
+
+  button(p, 'Сохранить ключ', () => {
+    const value = input.value.trim();
+    if (!value) return toast('Вставь ключ');
+    setXaiKey(value);
+    refreshKeyButton();
+    $('#modal').close();
+    toast('Ключ сохранён на этом устройстве');
+  }, true);
+
+  if (stored) {
+    button(p, 'Удалить ключ', () => {
+      setXaiKey('');
+      refreshKeyButton();
+      $('#modal').close();
+      toast('Ключ удалён');
+    });
+  }
+};
 
 $('#gen-clip').onclick = () => {
   const item = clipAt(selectedLayer, position);
@@ -2383,7 +2505,7 @@ $('#gen-clip').onclick = () => {
     $('#modal').close();
 
     if (key && taskId) {
-      runGrokTask(taskId, text, key);
+      runGrokTask(taskId, text, key, clip);
     } else {
       toast('Задача в очереди: подключи ключ xAI, чтобы запустить генерацию');
     }
@@ -2972,6 +3094,7 @@ $('#generation').onclick = () => {
     await write('projects', project.id, project);
     await openProject(project);
     $('#saved').textContent = 'Сохранено';
+    if (typeof refreshKeyButton === 'function') refreshKeyButton();
   } catch (e) {
     $('#saved').textContent = 'Хранилище недоступно';
     toast('Хранилище браузера недоступно. Открой сайт в обычной вкладке.');
@@ -2992,6 +3115,11 @@ $('#refresh').onclick = async () => {
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
